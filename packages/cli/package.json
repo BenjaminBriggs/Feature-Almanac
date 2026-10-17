@@ -1,0 +1,33 @@
+{
+  "name": "feature-almanac",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Feature Almanac: a git-stored spec of everything an app does, and the almanac CLI",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BenjaminBriggs/Feature-Almanac.git",
+    "directory": "packages/cli"
+  },
+  "type": "module",
+  "bin": {
+    "almanac": "./dist/bin.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "assets"
+  ],
+  "dependencies": {
+    "@feature-almanac/core": "0.1.0",
+    "@feature-almanac/schema": "0.1.0",
+    "@feature-almanac/site": "0.1.0",
+    "commander": "^14.0.3"
+  }
+}

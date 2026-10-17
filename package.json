@@ -1,0 +1,29 @@
+{
+  "name": "feature-almanac-monorepo",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BenjaminBriggs/Feature-Almanac.git"
+  },
+  "type": "module",
+  "workspaces": [
+    "packages/schema",
+    "packages/core",
+    "packages/site",
+    "packages/cli"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "tsc -b --clean",
+    "test": "vitest run",
+    "check": "tsc -b && vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "~5.9.3",
+    "vitest": "^5.0.5"
+  }
+}
