@@ -1,0 +1,52 @@
+name: Feature Almanac
+description: Install the almanac CLI on PATH and build a Feature Almanac website (index.html and almanac.json) from an almanac folder. Set site to false to only install the CLI. Uploading and deploying are left to the caller.
+author: BenjaminBriggs
+
+inputs:
+  site:
+    description: Whether to build the website. Set it to "false" to only install the almanac CLI for later steps.
+    required: false
+    default: "true"
+  root:
+    description: The almanac folder, relative to the workspace. Used by the site build.
+    required: false
+    default: almanac
+  out:
+    description: The folder to write the site to, relative to the workspace. Used by the site build.
+    required: false
+    default: _site
+  node-version:
+    description: The Node.js version to build and run the tool with. Later steps in the job also get this version.
+    required: false
+    default: "22"
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Build the almanac tool
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: npm ci && npm run build
+
+    # The bin folder sits outside the workspace, because `almanac affected` counts untracked files.
+    - name: Put almanac on PATH
+      shell: bash
+      run: |
+        bin="$RUNNER_TEMP/feature-almanac/bin"
+        mkdir -p "$bin"
+        printf '#!/bin/sh\nexec node "%s/packages/cli/dist/bin.js" "$@"\n' "$GITHUB_ACTION_PATH" > "$bin/almanac"
+        chmod +x "$bin/almanac"
+        echo "$bin" >> "$GITHUB_PATH"
+
+    - name: Build the almanac site
+      if: inputs.site != 'false'
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        ALMANAC_ROOT: ${{ inputs.root }}
+        ALMANAC_OUT: ${{ inputs.out }}
+      run: node "$GITHUB_ACTION_PATH/packages/cli/dist/bin.js" --root "$ALMANAC_ROOT" site build --out "$ALMANAC_OUT"
