@@ -48,7 +48,7 @@ async function seeded() {
   await h.almanac('init', '--product', 'Painting Desk', '--prefix', 'PD', '--platforms', 'ios,macos,android')
   await h.almanac('add', 'category', '--name', 'Editing', '--description', 'Creating, formatting and saving notes.')
   await h.almanac('add', 'feature', '--category', '1', '--name', 'Markdown editor', '--description', 'Rich editing of notes with live preview.', '--owner', 'ben', '--status', 'shipped')
-  await h.almanac('add', 'behaviour', '--feature', '1.1', '--name', 'Bold formatting', '--description', 'Toggles bold on the selection or on newly typed text.')
+  await h.almanac('add', 'behaviour', '--feature', '1.1', '--name', 'Bold formatting', '--format', 'prose', '--description', 'Toggles bold on the selection or on newly typed text.')
   return h
 }
 
@@ -77,7 +77,7 @@ platforms:
     expect(feature.stdout).toBe('Added feature 1.1 Markdown editor (01-editing/01-markdown-editor.yaml)\n')
 
     h.setStdin('Given a note with unsaved edits\nWhen input is idle for 1 second\nThen the note is saved\n')
-    expect((await h.almanac('add', 'behaviour', '--feature', 'PD-1.1', '--name', 'Autosave', '--format', 'gherkin', '-')).code).toBe(0)
+    expect((await h.almanac('add', 'behaviour', '--feature', 'PD-1.1', '--name', 'Autosave', '-')).code).toBe(0)
     expect((await h.almanac('add', 'variant', '1.1.1', '--platforms', 'android', '--mode', 'replace', '--description', 'Saves when the app goes to the background.')).stdout).toBe(
       'Added variant 1.1.1@android (01-editing/01-markdown-editor.yaml)\n',
     )
@@ -212,12 +212,25 @@ platforms:
       summary: 'Initial almanac.',
       ops: [
         { op: 'add', level: 'feature', parent: '1', as: '$tables', name: 'Tables', description: 'Markdown tables with a grid editor.', owner: 'ben', status: 'shipped' },
-        { op: 'add', level: 'behaviour', parent: '$tables', name: 'Insert table', description: 'Inserts a two-by-two table at the cursor.' },
+        {
+          op: 'add',
+          level: 'behaviour',
+          parent: '$tables',
+          name: 'Insert table',
+          description: 'Inserts a two-by-two table at the cursor.\nGiven a note open in the editor\nWhen the user chooses "Insert Table"\nThen a two-by-two table appears at the cursor',
+        },
+        { op: 'add', level: 'behaviour', parent: '$tables', name: 'Prose', description: 'Inserts a two-by-two table at the cursor.' },
       ],
     }))
     const result = await h.almanac('apply', '-')
-    expect(result).toMatchObject({ code: 0, stdout: 'Added feature 1.2 ($tables)\nAdded behaviour 1.2.1\nWrote 2 files\n' })
-    expect(await h.almanac('lint')).toMatchObject({ code: 0, stdout: 'No problems.\n' })
+    expect(result).toMatchObject({ code: 0, stdout: 'Added feature 1.2 ($tables)\nAdded behaviour 1.2.1\nAdded behaviour 1.2.2\nWrote 2 files\n' })
+    // Gherkin is the default format: prose with no format set is a warning that says how to opt out.
+    expect((await h.almanac('lint')).stdout).toBe(
+      '01-editing/02-tables.yaml:20  warn   ALM-W015  Behaviour 1.2.2 has format gherkin, but no Given/When/Then steps found (gherkin is the default; set format: prose for plain text)\n0 errors, 1 warning\n',
+    )
+    const behaviour = (await h.almanac('--json', 'show', '1.2.1')).json().data.entity
+    expect(behaviour).toMatchObject({ format: 'gherkin', summary: 'Inserts a two-by-two table at the cursor.' })
+    expect(behaviour.gherkin[0].steps).toHaveLength(3)
     expect((await h.almanac('apply', 'missing.json')).code).toBe(2)
   })
 
@@ -338,6 +351,8 @@ platforms:
     const generate = h.fs.readFile(join(CWD, '.claude/commands/almanac-generate.md'))
     expect(generate).toMatch(/^---\ndescription: "Build the initial almanac for this codebase from its code"\nargument-hint: "\[path to the code, default: this repository\]"\n---\n\nInput: \$ARGUMENTS\n/)
     expect(generate).toContain('Verify every feature with `/almanac-verify`')
+    expect(generate).toContain('Write each behaviour as a one-line summary followed by Given/When/Then')
+    expect(h.fs.readFile(join(CWD, '.claude/skills/almanac/SKILL.md'))).toContain('## Writing behaviours: Given / When / Then')
     expect((await h.almanac('agent', 'install')).stdout).toBe('Already up to date.\n')
     expect((await h.almanac('agent', 'install', '--global')).stdout).toContain('Wrote ../home/tester/.claude/skills/almanac/SKILL.md')
     expect((await h.almanac('agent', 'install', '--tool', 'cursor')).code).toBe(2)
@@ -371,6 +386,63 @@ platforms:
     expect(global.stdout).toBe('Wrote ../home/tester/.copilot/skills/almanac/SKILL.md\n')
     expect(global.stderr).toContain('per repository')
     expect((await h.almanac('agent', 'install', '--tool', 'codex', '--global')).stdout).toContain('Wrote ../home/tester/.agents/skills/almanac-ask/SKILL.md')
+  })
+
+  it('agent install --ci adds the Copilot pull request checks', async () => {
+    const h = harness()
+    await h.almanac('agent', 'install', '--tool', 'copilot')
+    expect(h.fs.readFile(join(CWD, '.github/workflows/almanac-verify.md'))).toBeUndefined()
+
+    const result = await h.almanac('agent', 'install', '--tool', 'copilot', '--ci')
+    expect(result.code).toBe(0)
+    expect(result.stdout).toBe('Wrote .github/workflows/almanac-verify.md\nWrote .github/instructions/almanac.instructions.md\n')
+    expect(result.stderr).toContain('Run gh aw compile')
+    expect(result.stderr).toContain('COPILOT_GITHUB_TOKEN')
+    expect(result.stderr).toContain('In .github/instructions/almanac.instructions.md, replace YOUR_SOURCE_GLOBS')
+
+    const workflow = h.fs.readFile(join(CWD, '.github/workflows/almanac-verify.md')) as string
+    expect(workflow).toMatch(/^---\ndescription: .*\n[\s\S]*\non:\n {2}pull_request:\n {4}types: \[opened, synchronize\]\n/)
+    expect(workflow).toContain('engine: copilot\n')
+    expect(workflow).toContain('almanac affected --base origin/${{ github.event.pull_request.base.ref }} --json')
+    expect(workflow).toMatch(/\nsafe-outputs:\n {2}add-comment:\n/)
+    expect(workflow).not.toMatch(/create-issue:|push-to-pull-request-branch:|create-pull-request:/)
+
+    const instructions = h.fs.readFile(join(CWD, '.github/instructions/almanac.instructions.md')) as string
+    expect(instructions).toMatch(/^---\napplyTo: "YOUR_SOURCE_GLOBS,almanac\/\*\*"\n---\n/)
+    // Copilot code review reads only the first 4,000 characters of an instructions file.
+    expect(instructions.length).toBeLessThan(4000)
+
+    // Installing again keeps the globs the repository chose.
+    h.fs.writeFile(join(CWD, '.github/instructions/almanac.instructions.md'), instructions.replace('YOUR_SOURCE_GLOBS', 'app/**'))
+    const again = await h.almanac('agent', 'install', '--tool', 'copilot', '--ci')
+    expect(again.stdout).toBe('Already up to date.\n')
+    expect(again.stderr).toBe('')
+    h.fs.writeFile(join(CWD, '.github/workflows/almanac-verify.md'), 'edited')
+    const refreshed = await h.almanac('agent', 'install', '--tool', 'copilot', '--ci')
+    expect(refreshed.stdout).toBe('Wrote .github/workflows/almanac-verify.md\n')
+    expect(refreshed.stderr).toContain('Run gh aw compile')
+    expect(refreshed.stderr).not.toContain('YOUR_SOURCE_GLOBS')
+    expect(h.fs.readFile(join(CWD, '.github/instructions/almanac.instructions.md'))).toContain('applyTo: "app/**,almanac/**"')
+
+    expect((await h.almanac('agent', 'install', '--tool', 'claude', '--ci')).code).toBe(2)
+    expect((await h.almanac('agent', 'install', '--tool', 'copilot', '--ci', '--global')).code).toBe(2)
+  })
+
+  it('converts a prose behaviour to Given/When/Then in one patch, as the skill describes', async () => {
+    const h = await seeded()
+    h.setStdin(JSON.stringify({
+      almanac: 1,
+      summary: 'Bold formatting in Given/When/Then.',
+      ops: [
+        { op: 'set', ref: '1.1.1', values: { format: 'gherkin' } },
+        { op: 'describe', ref: '1.1.1', description: 'Given text is selected in a note\nWhen the user taps "Bold"\nThen the selection becomes bold' },
+      ],
+    }))
+    expect((await h.almanac('apply', '-')).code).toBe(0)
+    expect((await h.almanac('lint')).stdout).toBe('No problems.\n')
+    const shown = JSON.stringify((await h.almanac('show', '1.1.1', '--format', 'json')).json())
+    expect(shown).toContain('"format":"gherkin"')
+    expect(shown).toMatch(/"keyword":"Given".*"keyword":"When".*"keyword":"Then"/)
   })
 
   it('agent install adds the update workflow', async () => {

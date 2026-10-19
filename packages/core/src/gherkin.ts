@@ -4,20 +4,20 @@ import type { GherkinScenario } from '@feature-almanac/schema'
 
 const SCENARIO_LINE = /^\s*(Scenario Outline|Scenario Template|Scenario|Example|Rule):/m
 
-export type GherkinResult = { ok: true; scenarios: GherkinScenario[] } | { ok: false; message: string }
+export type GherkinResult = { ok: true; scenarios: GherkinScenario[]; summary?: string } | { ok: false; message: string }
 
 /**
  * Parses a `format: gherkin` description. Descriptions hold bare steps, which the Gherkin parser
  * rejects, so they are wrapped in a synthetic Feature (and Scenario, unless the text has its own).
+ * Plain text above the first step or `Scenario:` line is the behaviour's one-line summary.
  */
 export function parseGherkin(description: string): GherkinResult {
   const body = description
     .split('\n')
     .map((line) => `    ${line}`)
     .join('\n')
-  const source = SCENARIO_LINE.test(description)
-    ? `Feature: Behaviour\n${body}\n`
-    : `Feature: Behaviour\n  Scenario:\n${body}\n`
+  const named = SCENARIO_LINE.test(description)
+  const source = named ? `Feature: Behaviour\n${body}\n` : `Feature: Behaviour\n  Scenario:\n${body}\n`
 
   const parser = new Parser(new AstBuilder(IdGenerator.incrementing()), new GherkinClassicTokenMatcher())
   let document
@@ -45,5 +45,8 @@ export function parseGherkin(description: string): GherkinResult {
   if (scenarios.every((scenario) => scenario.steps.length === 0)) {
     return { ok: false, message: 'no Given/When/Then steps found' }
   }
-  return { ok: true, scenarios }
+  // Text before the steps is the synthetic Scenario's description, or the Feature's when the text names its scenarios.
+  const lead = named ? document.feature?.description : document.feature?.children[0]?.scenario?.description
+  const summary = (lead ?? '').split('\n').map((line) => line.trim()).filter((line) => line !== '').join(' ')
+  return summary === '' ? { ok: true, scenarios } : { ok: true, scenarios, summary }
 }

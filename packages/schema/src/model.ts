@@ -75,6 +75,8 @@ export interface Behaviour {
   format: string
   description: string
   gherkin?: GherkinScenario[]
+  /** For gherkin, the plain line written above the steps. */
+  summary?: string
   source: SourceRef[]
   tags: string[]
   flag?: string

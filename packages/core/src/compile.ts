@@ -558,10 +558,16 @@ class Compiler {
     this.checkDescription(file, data.description, [...base, 'description'], `Behaviour ${id}`, id)
 
     let gherkin
+    let summary
     if (format === 'gherkin') {
       const parsed = parseGherkin(data.description)
-      if (parsed.ok) gherkin = parsed.scenarios
-      else report('ALM-W015', `Behaviour ${id} has format gherkin, but ${parsed.message}`, [...base, 'description'])
+      if (parsed.ok) {
+        gherkin = parsed.scenarios
+        summary = parsed.summary
+      } else {
+        const hint = data.format === undefined ? ' (gherkin is the default; set format: prose for plain text)' : ''
+        report('ALM-W015', `Behaviour ${id} has format gherkin, but ${parsed.message}${hint}`, [...base, 'description'])
+      }
     }
 
     const finalStatus: PlatMap = { ...status.map }
@@ -629,6 +635,7 @@ class Compiler {
       format,
       description,
       ...(gherkin !== undefined ? { gherkin } : {}),
+      ...(summary !== undefined ? { summary } : {}),
       source: (data.source ?? []).map((source) => this.sourceRef(source)),
       tags: data.tags ?? [],
       ...(data.flag !== undefined ? { flag: data.flag } : {}),

@@ -31,7 +31,7 @@ For each feature, read its code and write its behaviours:
 - One observable outcome each, typically 3–15 per feature, written for support staff and QA: what the user does, what happens, the limits (timings, counts, what stays unchanged).
 - `source` on every behaviour, pointing at the file and symbol that implements it.
 - Platform differences as variants. A behaviour that exists only on some platforms gets `platforms`.
-- Use `format: gherkin` only for flows that read naturally as Given/When/Then.
+- Write each behaviour as a one-line summary followed by Given/When/Then, following the `almanac` skill's guide: the starting state, the one trigger, then what the user observes, numbers included. Use prose (`format: prose`) only for a behaviour with no trigger at all.
 - `status: in-progress` for code behind a feature flag or not yet reachable. Record the flag as `flag`.
 
 Apply one patch per feature with `"summary": "Initial almanac."` and `"changelog": "auto"`. Run `almanac lint` after each.

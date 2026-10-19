@@ -1,4 +1,4 @@
-# Feature Almanac
+<h1 align="center"><img src="logo.png" alt="The Feature Almanac" width="600"></h1>
 
 A Feature Almanac is a specification of everything an app does, kept in git next to the code. It's written for the people who need to know how the product behaves (support, QA, product and the next developer), and it's what your AI coding agent reads and updates when the code changes.
 
@@ -29,6 +29,7 @@ almanac/
 - **Nothing is deleted.** Removing something leaves a tombstone with `status: removed` and a `removed_reason`.
 - **Status is per platform.** Each platform is `planned`, `in-progress`, `shipped`, `deprecated` or `removed`. Everything applies to every platform unless narrowed.
 - **Behaviours cite code.** `source: [Sources/Editor/EditorView.swift#toggleBold]`, relative to `code.path` in `almanac.yaml`, so an agent can check the almanac against the code.
+- **Behaviours read as Given / When / Then.** Gherkin (cucumber) is the default format: a one-line summary, then the starting state, the one trigger and what the user observes. The schema doesn't enforce it. Prose is still allowed with `format: prose`, and an existing prose behaviour is converted when it's next rewritten. The site shows the summary above the steps, with their keywords.
 - **Every write is recorded.** Each feature carries a changelog, which the CLI writes for you.
 
 ## Install
@@ -56,7 +57,7 @@ almanac agent install --tool codex       # OpenAI Codex
 almanac agent install --tool claude,copilot,codex
 ```
 
-Add `--global` to install for every project in your home folder, and `--dry-run` (before `agent`) to see the files first. Run the same command again after updating the CLI; files that haven't changed are left alone.
+Add `--global` to install for every project in your home folder, and `--dry-run` (before `agent`) to see the files first. Run the same command again after updating the CLI; files that haven't changed are left alone. With `--tool copilot`, `--ci` also adds checks that run on every pull request (see [Copilot on every pull request](#copilot-on-every-pull-request)).
 
 Each install adds the **`almanac` skill**. It tells the agent how the almanac works, to change it only through the CLI, and to update it in the same change as the code. It also adds four workflows:
 
@@ -129,6 +130,27 @@ It matches the changed files against every live behaviour's `source` (variants i
 - whether the change also edits the almanac.
 
 Paths come from git relative to the repository and are matched relative to `code.path`. `--json` gives the same as data for agents and scripts.
+
+## Copilot on every pull request
+
+GitHub Copilot can check the almanac on every pull request in two ways. One command installs both:
+
+```bash
+almanac agent install --tool copilot --ci
+```
+
+- **Copilot code review** reads `.github/instructions/almanac.instructions.md` whenever it reviews a pull request. It comments on code changes that alter a documented behaviour, citing the behaviour ID, and on almanac edits that don't match the code. This is the cheap route: the instructions ride along with a review Copilot was doing anyway. But it only reads the diff; it runs nothing. Replace `YOUR_SOURCE_GLOBS` in the file's `applyTo` with your source globs (such as `src/**`) and keep `almanac/**`. Code review reads only the first 4,000 characters of an instructions file, and the template stays under that. Request Copilot as a reviewer, or add a ruleset that requests it automatically.
+- **The almanac check** (`.github/workflows/almanac-verify.md`) is a [GitHub Agentic Workflow](https://github.github.com/gh-aw/): Copilot CLI running in Actions. When a same-repository pull request is opened or pushed to, it installs the `almanac` CLI and runs `almanac affected --base origin/<base>`. It then runs the verify workflow's checks on only the affected behaviours, against the code as the pull request leaves it. It posts one comment with a table: ID, name, result (confirmed, corrected, unsupported or missing) and the suggested change. Each run hides the previous run's comment. It reports and never pushes: that comment is the only thing it can write.
+
+To turn on the almanac check:
+
+1. Install the gh-aw extension: `gh extension install github/gh-aw`.
+2. Run `gh aw compile`. It writes `.github/workflows/almanac-verify.lock.yml`, the Actions workflow GitHub actually runs. Commit it with the `.md`, and compile again whenever you edit the `.md`.
+3. Add the `COPILOT_GITHUB_TOKEN` secret: a fine-grained personal access token whose owner has a Copilot licence, with Account permissions → Copilot Requests: Read. Set it with `gh aw secrets set COPILOT_GITHUB_TOKEN --value <token>`. If your organisation bills Copilot CLI centrally, add `copilot-requests: write` under the workflow's `permissions` instead.
+
+The workflow installs the CLI with this repository's action, `BenjaminBriggs/Feature-Almanac@main` with `site: "false"`: it builds the tool and puts `almanac` on PATH without building the website (see [the action's inputs](#publishing-with-github-pages)). If your copy of this repository is private, its Actions access setting has to reach the app repository.
+
+**Cost.** Each run that starts the agent uses Copilot premium requests, billed to the token's owner. `affected` keeps that small. A pull request that changes no cited file stops before the agent starts and costs nothing. Otherwise the agent reads only the behaviours the diff touches, not the whole almanac.
 
 ## Quick start by hand
 
@@ -203,6 +225,7 @@ next_behaviour: 3
 behaviours:
   - id: "1.1.1"
     name: Bold formatting
+    format: prose
     description: Toggles bold on the selection. With no selection, bold applies to newly typed text.
     source: [Sources/Editor/EditorView.swift#toggleBold]
     variants:
@@ -211,8 +234,8 @@ behaviours:
         description: Triggered from the formatting bar above the keyboard.
   - id: "1.1.2"
     name: Autosave
-    format: gherkin
     description: |
+      Saves the note a second after typing stops.
       Given a note with unsaved edits
       When input is idle for 1 second
       Then the note is saved without interrupting typing
@@ -326,6 +349,76 @@ The site is one self-contained HTML page you can host anywhere or attach to a ti
 - **Deep links:** `#1.2` opens a feature's panel, and `#1.2.3` (or `#EX-1.2.3`) opens it scrolled to that behaviour.
 - **No JavaScript needed to read it:** everything is pre-rendered.
 
+### Publishing with GitHub Pages
+
+Every link in the built page is relative, so it works from a Pages address like `https://<org>.github.io/<repo>/`. In the app repository, set Settings → Pages → Source to "GitHub Actions", then add this workflow as `.github/workflows/almanac-site.yml`:
+
+```yaml
+name: Almanac site
+on:
+  push:
+    branches: [main]
+    paths: ["almanac/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: BenjaminBriggs/Feature-Almanac@main
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+```
+
+The action (`action.yml` at the root of this repository) sets up Node, builds this tool, puts `almanac` on PATH for later steps in the job and runs `almanac --root <root> site build --out <out>` in the workspace. It only builds the site, so the output can go to another host just as well. With `site: "false"` it skips the site build and only installs the CLI, which is how the [almanac check](#copilot-on-every-pull-request) uses it. Its inputs:
+
+| Input | Default | Meaning |
+| --- | --- | --- |
+| `site` | `true` | `false` skips the site build, so the action only installs `almanac`. |
+| `root` | `almanac` | The almanac folder. |
+| `out` | `_site` | Where the site is written. |
+| `node-version` | `22` | Node used to build and run the tool. Later steps in the job get it too. |
+
+`@main` follows this repository's main branch. Pin a commit SHA instead if you want builds to stay put.
+
+If you can't use the action (say your copy of this repository is private and its Actions access setting doesn't reach the app repository), build the tool from source instead. Replace the action step with:
+
+```yaml
+      - uses: actions/checkout@v4
+        with:
+          repository: BenjaminBriggs/Feature-Almanac   # add token: for a private copy
+          path: .feature-almanac
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci && npm run build
+        working-directory: .feature-almanac
+      - run: node .feature-almanac/packages/cli/dist/bin.js --root almanac site build --out _site
+```
+
+The almanac lists unreleased behaviour, so make the Pages site private to your organisation (GitHub Enterprise Cloud) or host it internally.
+
 Options go under `site:` in `almanac.yaml`:
 
 ```yaml
@@ -367,4 +460,4 @@ npm run check      # type-check every package and run the tests
 npm run build      # rebuild; a linked `almanac` picks it up
 ```
 
-The agent files are written once and rendered for each tool. `assets/agent/skill/SKILL.md` is shared by all three. The workflows in `assets/agent/workflows/` use `{{input}}` and `{{verify}}` placeholders, which `almanac agent install` fills in for each tool.
+The agent files are written once and rendered for each tool. `assets/agent/skill/SKILL.md` is shared by all three. The workflows in `assets/agent/workflows/` use `{{input}}` and `{{verify}}` placeholders, which `almanac agent install` fills in for each tool. `--ci` copies the files in `assets/agent/github/` as they are, keeping the `applyTo` line of an existing instructions file.

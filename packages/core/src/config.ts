@@ -34,7 +34,7 @@ export function resolveConfig(data: ConfigFile): ResolvedConfig {
     platformNames: Object.fromEntries(platforms.map((tag) => [tag, data.platforms[tag]?.name ?? tag])),
     groups: data.platform_groups ?? {},
     statuses: data.statuses ?? DEFAULT_STATUSES,
-    formatDefault: data.formats?.default ?? 'prose',
+    formatDefault: data.formats?.default ?? 'gherkin',
     formatsAllowed: data.formats?.allowed ?? DEFAULT_FORMATS,
     linkTypes: data.link_types ?? DEFAULT_LINK_TYPES,
     fields: { feature: data.fields?.feature ?? {}, behaviour: data.fields?.behaviour ?? {} },

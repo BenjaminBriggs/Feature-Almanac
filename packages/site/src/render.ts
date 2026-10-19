@@ -210,7 +210,7 @@ function renderBehaviour(model: Almanac, options: SiteOptions, feature: Feature,
   const body =
     behaviour.gherkin === undefined
       ? `<div class="md">${renderMarkdown(behaviour.description)}</div>`
-      : `<div class="steps">${behaviour.gherkin
+      : `${behaviour.summary === undefined ? '' : `<p class="b-summary">${escapeHtml(behaviour.summary)}</p>`}<div class="steps">${behaviour.gherkin
           .map(
             (scenario) =>
               `${scenario.name === undefined ? '' : `<p class="scenario">${escapeHtml(scenario.name)}</p>`}<ol>${scenario.steps

@@ -17,13 +17,38 @@ The root holds `almanac.yaml` (product, prefix, platforms, statuses). Find it wi
 ## Rules
 
 1. **Never edit almanac YAML by hand.** Every change goes through the CLI: `almanac apply` for batches, or `add`, `set`, `describe`, `rename`, `remove`, `mv` and `changelog add` for one change. They allocate IDs, keep `formerly` and the counters right, move files when names change, and write the changelog. IDs are never reused or renumbered. The one exception is `almanac.yaml` itself (platforms, owners, `code:`), which you edit directly.
-2. **Describe what a user can observe, not the implementation.** "The note is saved after 1 second of idle input", not "AutosaveController debounces writes". One outcome per behaviour.
+2. **Describe what a user can observe, not the implementation.** "The note is saved after 1 second of idle input", not "AutosaveController debounces writes". One outcome per behaviour, written as Given/When/Then (next section).
 3. **Cite code.** Every behaviour inferred from code gets `source: ["path/to/File.swift#symbol"]`, with paths relative to `code.path` in almanac.yaml. Don't write behaviours you cannot point at.
 4. **Platforms by exception.** Everything applies to every platform unless narrowed. Same outcome, different mechanics → a variant. Different outcome, or only some platforms → a behaviour with `platforms`.
 5. **Status is a fact, not a guess.** Code that ships is `shipped`; behind a flag or unfinished is `in-progress`; `planned` only when the user says so.
 6. **Lint after every write**: `almanac lint --json`. Fix every error before finishing. A write that would add errors is rejected and nothing is written; the rejection lists the errors it would have added.
 7. **Cite IDs** (`PD-1.2.3`) in tickets, PR descriptions and commit messages.
 8. **Removing is a tombstone.** `remove` keeps the entity with `status: removed` and a `removed_reason`; nothing is deleted. Remove only what the user confirms is gone, and never to tidy up.
+
+## Writing behaviours: Given / When / Then
+
+Write each behaviour's description as one plain summary line followed by Gherkin (cucumber) steps. Gherkin is the default format, so these behaviours need no `format` field. Plain prose is still allowed for a behaviour with no trigger at all, such as a fixed fact about a screen, and needs `format: prose`.
+
+- **Summary**: the first line, one sentence saying what the behaviour does, in words a support agent would use. The site shows it above the steps. Don't repeat the `name`, and leave the details to the steps.
+
+- **Given**: where the user starts. What's on screen, what data exists, what they've already done. Leave it out when nothing needs to be true first.
+- **When**: the one thing that happens, such as a tap, click, keystroke, gesture, notification or time passing. Name controls by their visible label, in quotes.
+- **Then**: what the user can observe as a result, with the numbers that matter (timings, limits, counts). Add more outcomes with **And**, and use **But** for what deliberately stays the same.
+- Write about "the user", not "I", and never about code: no class, method or API names.
+- **One scenario per behaviour.** The behaviour's `name` is the scenario's name. A second `Scenario:` block is fine when the same outcome has two distinct triggers or starting points; a different outcome is a different behaviour.
+- **Variants stay prose:** one sentence on how the platform differs, for example "On a Mac, the When is ⌘B or Format ▸ Bold".
+
+```gherkin
+Saves the note a second after the user stops typing.
+Given a note with unsaved edits
+When the user stops typing for 1 second
+Then the note is saved
+But the cursor and selection don't move
+```
+
+Avoid "AutosaveController debounces writes", which is implementation, and "The note saves automatically", which has no trigger and no timing.
+
+In a patch, a behaviour's description is one string: `"description": "Saves the note …\nGiven …\nWhen …\nThen …"`. To convert an existing prose behaviour, `set` its format to `gherkin` and `describe` it in the same `apply` patch; two separate commands would leave it half converted. When you rewrite a prose behaviour for any other reason, convert it at the same time, and add a summary line to a Gherkin behaviour that lacks one. `almanac lint` warns (ALM-W015) about a gherkin description with no Given/When/Then steps, which is also what prose without `format: prose` produces.
 
 ## Reading
 
@@ -49,7 +74,10 @@ almanac set 1.2.3 source=Sources/Editor/Bold.swift#toggle tags=formatting,core
 almanac set 1.2.3 flag=                                   # an empty value unsets the key
 almanac set 1.2.3@android status=shipped                  # variants are edited by their ref
 almanac describe 1.2.3 - <<'EOF'
-Toggles bold on the selection. With no selection, bold applies to newly typed text.
+Given text is selected in a note
+When the user taps "Bold"
+Then the selection becomes bold
+And tapping "Bold" again makes it plain
 EOF
 almanac describe 1.2 --overview --description-file overview.md
 almanac rename 1.2 --name "Note editor"                   # the file (or a category's folder) is renamed too
@@ -81,8 +109,8 @@ almanac --dry-run apply - <<'EOF'
     { "op": "add", "level": "feature", "parent": "$editing", "as": "$editor", "name": "Markdown editor",
       "description": "Rich editing of notes with live preview.", "owner": "ben", "status": "shipped" },
     { "op": "add", "level": "behaviour", "parent": "$editor", "as": "$bold", "name": "Bold formatting",
-      "source": ["Sources/Editor/EditorView.swift#toggleBold"],
-      "description": "Toggles bold on the selection. With no selection, bold applies to newly typed text." },
+      "source": ["Sources/Editor/EditorView.swift#toggleBold"], "format": "gherkin",
+      "description": "Given text is selected in a note\nWhen the user taps \"Bold\"\nThen the selection becomes bold\nAnd tapping \"Bold\" again makes it plain" },
     { "op": "add", "level": "variant", "parent": "$bold", "platforms": ["android"], "status": "in-progress",
       "description": "Triggered from the formatting bar above the keyboard." }
   ],

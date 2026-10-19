@@ -15,6 +15,8 @@ platforms:
   macos: { name: macOS }
 platform_groups:
   apple: [ios, macos]
+formats:
+  default: prose
 `
 
 export const EDITING = `id: 1

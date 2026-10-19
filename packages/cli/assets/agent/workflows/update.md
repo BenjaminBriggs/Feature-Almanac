@@ -38,11 +38,11 @@ If the change renames or moves files, repoint the almanac at them before anythin
 For each listed behaviour, read it (`almanac show <ref> --json`) and the diff of its sources, looking hardest at the symbol it names. Decide which of these it is:
 
 - **Unchanged.** A refactor, a rename or an internal change with no difference a user could see. This is the most common case: leave the behaviour alone.
-- **Changed.** It's still there but different: timings, limits, wording, platforms or status. Use `describe` or `set`.
+- **Changed.** It's still there but different: timings, limits, wording, platforms or status. Use `describe` or `set`. A rewritten description is a one-line summary followed by Given/When/Then; if the behaviour was prose, set `format: gherkin` in the same patch.
 - **Moved.** `relink` has already followed renamed files. If a symbol moved to a different file, or was renamed, point `source` at it with `set`.
 - **Gone.** The change removes it. Don't remove it yourself: list it for the user with the reason, because removal leaves a tombstone.
 
-For the changed files nothing cites, read their diff. When one adds something a user can observe, add a behaviour to the feature it belongs to, with `source`. When it fits no feature, propose a new feature (or category) and wait for the user before adding it. Tests, build files, tooling and pure refactors need nothing.
+For the changed files nothing cites, read their diff. When one adds something a user can observe, add a behaviour to the feature it belongs to, written as a one-line summary and Given/When/Then, with `source`. When it fits no feature, propose a new feature (or category) and wait for the user before adding it. Tests, build files, tooling and pure refactors need nothing.
 
 If the change already edits the almanac, check those edits against the code instead of redoing them.
 

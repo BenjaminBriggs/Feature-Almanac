@@ -15,6 +15,6 @@ For each behaviour in scope (`almanac show <feature> --json` lists them with `so
 2. Check that the description states what the code actually does: triggers, timings, limits, platform differences and status. Check what is missing as well as what is wrong.
 3. Classify each behaviour as **confirmed**, **corrected** (wording, platforms or status were wrong), **unsupported** (no code does this) or **missing** (the code does something observable that no behaviour covers).
 
-Fix corrected behaviours with one `almanac apply` patch per feature, using `set` and `describe` ops (`"summary": "Verified against code."`). Never edit the YAML by hand. Add missing behaviours with `add` ops in the same patch. Don't remove unsupported behaviours: list them for the user, because removal leaves a tombstone and needs a reason.
+Fix corrected behaviours with one `almanac apply` patch per feature, using `set` and `describe` ops (`"summary": "Verified against code."`). Write each corrected description as a one-line summary followed by Given/When/Then; a prose behaviour you correct also gets `format: gherkin` in the same patch. Never edit the YAML by hand. Add missing behaviours with `add` ops in the same patch, written the same way. Don't remove unsupported behaviours: list them for the user, because removal leaves a tombstone and needs a reason.
 
 Run `almanac lint` and finish with a table: ID, name, result, what changed.

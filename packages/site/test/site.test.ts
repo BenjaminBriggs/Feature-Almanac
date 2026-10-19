@@ -33,7 +33,7 @@ describe('renderSite', () => {
     expect(html).toContain('</li>\n<li class="unfold" id="1.1" data-feature="1.1" tabindex="-1" aria-labelledby="t-1.1">')
     expect(html).not.toContain('class="sheet"')
     expect(html).toContain('<li class="behaviour" id="1.1.2">\n<a class="chip" href="#1.1.2">EX-1.1.2</a>')
-    expect(html).toContain('<span class="kw">Given</span> a note with unsaved edits')
+    expect(html).toContain('<p class="b-summary">Saves the note a second after typing stops.</p><div class="steps"><ol><li><span class="kw">Given</span> a note with unsaved edits')
     expect(html).toContain('<dt>iOS &amp; iPadOS</dt>')
     expect(html).toContain('<span class="v-mode">Instead:</span>')
     expect(html).toContain('<span class="b-note">Only on iOS, iPadOS, macOS</span>')

@@ -128,6 +128,7 @@ behaviours:
     format: gherkin
     source: [Sources/Editor/Autosave.swift]
     description: |
+      Saves the note a second after typing stops.
       Given a note with unsaved edits
       When input is idle for 1 second
       Then the note is saved without interrupting typing
