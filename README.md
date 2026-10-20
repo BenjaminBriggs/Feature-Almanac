@@ -60,22 +60,23 @@ almanac agent install --tool claude,copilot,codex
 
 Add `--global` to install for every project in your home folder, and `--dry-run` (before `agent`) to see the files first. Run the same command again after updating the CLI; files that haven't changed are left alone. With `--tool copilot`, `--ci` also adds checks that run on every pull request (see [Copilot on every pull request](#copilot-on-every-pull-request)).
 
-Each install adds the **`almanac` skill**. It tells the agent how the almanac works, to change it only through the CLI, and to update it in the same change as the code. It also adds four workflows:
+Each install adds the **`almanac` skill**. It tells the agent how the almanac works, to change it only through the CLI, and to update it in the same change as the code. It also adds five workflows:
 
 | Workflow | What it does |
 |---|---|
 | **generate** | Builds the first almanac from the code. It proposes categories and features, **stops for your approval**, then writes the behaviours one feature at a time, verifies them and lints. |
 | **update** | Brings the almanac in line with a code change: a pull request, a commit, a range or uncommitted work. It finds the behaviours that cite the changed files, reads the diff, and applies one patch that records the PR or commit in the changelog. Removals and new features wait for your approval. See [Keeping it up to date](#keeping-it-up-to-date). |
 | **verify** | Checks behaviours (all of them, or the IDs you name) against the code they cite, fixes wording, platforms and status, and adds what's missing. |
+| **review** | Records a reviewer's decisions file from the website, then works through the rejections: corrects behaviours that misdescribe the code, drafts tickets where the code disagrees with the product, and lists questions for the reviewer. See [Reviewing behaviours](#reviewing-behaviours). |
 | **ask** | Answers "how does X work?" from the almanac, citing behaviour IDs. |
 
 Where the files go and how you run the workflows:
 
 | Tool | In the project | With `--global` | Run a workflow |
 |---|---|---|---|
-| Claude Code | `.claude/skills/almanac/`, `.claude/commands/almanac-*.md` | `~/.claude/…` | `/almanac-generate`, `/almanac-update #123`, `/almanac-verify 1.2`, `/almanac-ask how does autosave work?` |
-| GitHub Copilot | `.github/skills/almanac/`, `.github/prompts/almanac-*.prompt.md` | `~/.copilot/skills/almanac/` (skill only) | In VS Code Copilot Chat: `/almanac-generate`, `/almanac-update`, `/almanac-verify`, `/almanac-ask` |
-| OpenAI Codex | `.agents/skills/almanac/`, `.agents/skills/almanac-{generate,update,verify,ask}/` | `~/.agents/skills/…` | `$almanac-generate`, `$almanac-update`, `$almanac-verify`, `$almanac-ask`, or pick one from `/skills` |
+| Claude Code | `.claude/skills/almanac/`, `.claude/commands/almanac-*.md` | `~/.claude/…` | `/almanac-generate`, `/almanac-update #123`, `/almanac-verify 1.2`, `/almanac-review review-ex-sam-price-2026-10-20.json`, `/almanac-ask how does autosave work?` |
+| GitHub Copilot | `.github/skills/almanac/`, `.github/prompts/almanac-*.prompt.md` | `~/.copilot/skills/almanac/` (skill only) | In VS Code Copilot Chat: `/almanac-generate`, `/almanac-update`, `/almanac-verify`, `/almanac-review`, `/almanac-ask` |
+| OpenAI Codex | `.agents/skills/almanac/`, `.agents/skills/almanac-{generate,update,verify,review,ask}/` | `~/.agents/skills/…` | `$almanac-generate`, `$almanac-update`, `$almanac-verify`, `$almanac-review`, `$almanac-ask`, or pick one from `/skills` |
 
 Notes:
 
@@ -265,7 +266,7 @@ Global options go before the command: `almanac --json --dry-run apply patch.json
 
 | Command | |
 |---|---|
-| `list` | Lists features. `--level category\|feature\|behaviour`, plus the filters `--category N`, `--feature N.M`, `--status`, `--platform`, `--owner`, `--tag` and `--include-removed`. |
+| `list` | Lists features. `--level category\|feature\|behaviour`, plus the filters `--category N`, `--feature N.M`, `--status`, `--platform`, `--owner`, `--tag` and `--include-removed`. `--review unreviewed\|changed\|approved\|rejected\|needed` lists behaviours by review, with who decided, when and why. |
 | `show <ref>` | Prints one entity: `1`, `1.2`, `1.2.3`, `1.2.3@android` or `EX-1.2.3`. `--platform` resolves variants, and `--with-changelog`, `--with-related` and `--format markdown\|yaml\|json` change what's shown. |
 | `next-id [parent]` | Prints the ID the next `add` would allocate. |
 | `build` | Writes the compiled model to `dist/almanac.json` (or `--out <path>`). |
@@ -344,8 +345,8 @@ almanac site build               # dist/site/index.html beside the almanac (or -
 
 The site is one self-contained HTML page you can host anywhere or attach to a ticket:
 
-- **Hero:** counts of behaviours, features and categories.
-- **Category cards:** each category's features as cards. A card unfolds into a panel the height of the window, over everything else, listing every behaviour with its platforms, variants and status. The panel scrolls on its own while the page behind it holds still.
+- **Hero:** counts of behaviours, features and categories, and how far product review has got.
+- **Category cards:** each category's features as cards, with a bar showing how many of its behaviours are approved, rejected, changed since review or not yet reviewed. A card unfolds into a panel the height of the window, over everything else, listing every behaviour with its platforms, variants and status. The panel scrolls on its own while the page behind it holds still.
 - **Sticky search and category bar:** search across names, descriptions and IDs, and jump between categories from the bar as you scroll.
 - **Deep links:** `#1.2` opens a feature's panel, and `#1.2.3` (or `#EX-1.2.3`) opens it scrolled to that behaviour.
 - **Review mode:** the **Review** button in the bar, or **Review these** in a feature's panel (next section).
@@ -354,6 +355,8 @@ The site is one self-contained HTML page you can host anywhere or attach to a ti
 ### Reviewing behaviours
 
 Someone who knows how the product should behave, but doesn't work in the code, can ratify the almanac from the website. Nothing to install: the published site is enough.
+
+Every behaviour carries its review state as a tag beside its name: **Approved**, **Rejected**, **Changed since review** or **Not reviewed**. Below the steps a line says who decided, when, and for a rejection, why. Each feature's card and panel show a bar of those states with a count of each, and the hero shows the totals, so a reviewer can see what's left and a developer can spot rejections at a glance.
 
 1. **Review.** **Review** in the search bar shows one behaviour at a time: its category and feature for context, the summary, the steps, the platforms and the variants. **Approve** if that's how the product should behave. **Reject** if it isn't, and say what it should do instead (a reason is required). **Skip** and **Back** move without deciding. By default it shows only what needs a decision: behaviours nobody has reviewed, and ones that changed after their review. Choose a category to work through one area at a time, or start from a feature's **Review these**.
 2. **Download.** Decisions stay in the reviewer's browser until they enter their name and press **Download decisions**. That saves a file such as `review-ex-sam-price-2026-10-20.json`, which they send to whoever looks after the almanac.
@@ -383,6 +386,8 @@ Each verdict is stored on its behaviour with a hash of the text the reviewer saw
       note: It should save on every change, not after a pause.
       hash: "3f9a1c2e"
 ```
+
+**Acting on rejections.** A rejection changes nothing about the behaviour: the almanac still describes what the app does today, and the rejection records that the product wants something else. `almanac list --review rejected` is the work list. The **review** workflow (`/almanac-review <file>`) applies the file and then takes each rejection in turn. If the behaviour misdescribes the code, it corrects the behaviour, which sends it back to the reviewer. If the code is what the reviewer disagrees with, it drafts a ticket citing the ID and the reviewer's note and leaves the almanac alone. If it can't tell, it writes a question for the reviewer. When the code changes later, the update workflow rewrites the behaviour, and the reviewer sees it again.
 
 The hash covers the name, description and variants, but not status, platforms or sources. When the text changes, the review stays in the file but no longer counts: the site shows "Changed since Sam Price approved it" and puts the behaviour back in the review queue. A decision on text that changed between review and `apply` is skipped and reported, as above, rather than recorded against words the reviewer never read. `almanac show` prints each behaviour's review. Reviews write no changelog entry, because they change nothing about the behaviour; git history keeps the trail. A rejection is a disagreement to resolve: fix the code, or correct the behaviour and have it reviewed again.
 

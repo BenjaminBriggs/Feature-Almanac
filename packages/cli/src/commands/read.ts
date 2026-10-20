@@ -3,6 +3,7 @@ import {
   listEntities,
   lookup,
   nextId,
+  REVIEW_FILTERS,
   renderBehaviour,
   renderCategory,
   renderFeature,
@@ -12,6 +13,7 @@ import {
   UsageError,
   type Compilation,
   type ListLevel,
+  type ReviewFilter,
   type Listed,
   type Target,
 } from '@feature-almanac/core'
@@ -35,6 +37,7 @@ interface ListOptions {
   platform?: string
   owner?: string
   tag?: string
+  review?: ReviewFilter
   includeRemoved?: boolean
 }
 
@@ -73,6 +76,7 @@ export function registerReadCommands(program: Command, wrap: Wrap): void {
     .option('--platform <platform>', 'only entities available on this platform')
     .option('--owner <owner>', 'only this owner (a behaviour has its feature’s owner)')
     .option('--tag <tag>', 'only entities with this tag')
+    .addOption(new Option('--review <state>', 'behaviours by review: never reviewed, changed since, approved, rejected, or needed (the first two)').choices([...REVIEW_FILTERS]))
     .option('--include-removed', 'include tombstones')
     .action(
       wrap('list', (ctx, options: ListOptions) => {
@@ -80,6 +84,7 @@ export function registerReadCommands(program: Command, wrap: Wrap): void {
         checkPlatform(model, options.platform)
         const listed = listEntities(model, options)
         if (listed.length === 0) ctx.note('Nothing matches.')
+        else if (options.review !== undefined) ctx.out(table(listed.map((item) => [item.entity.id, item.entity.name, reviewLine(item)])))
         else ctx.out(table(listed.map((item) => [item.entity.id, item.entity.name, rowStatus(model, item, options.platform)])))
         ctx.envelope(true, listed.map(summary))
         return EXIT.ok
@@ -162,6 +167,15 @@ function renderTarget(model: Almanac, target: Target, options: ShowOptions, rela
     case 'variant':
       return renderVariant(model, target.behaviour.feature.model, target.behaviour.model, target.variant, target.platform)
   }
+}
+
+/** `list --review`: who decided what, and the rejection's reason. */
+function reviewLine(item: Listed): string {
+  if (item.level !== 'behaviour' || item.entity.review === undefined) return 'not reviewed'
+  const { review } = item.entity
+  const verdict = `${review.state} by ${review.by} on ${review.date}`
+  if (review.stale) return `changed since ${verdict}`
+  return review.note === undefined ? verdict : `${verdict}: ${review.note}`
 }
 
 function rowStatus(model: Almanac, item: Listed, platform: string | undefined): string {

@@ -1,6 +1,7 @@
 import { compareIds, parseRef, type Behaviour, type Category, type Feature, type IdLevel, type ParsedRef, type Almanac, type Variant } from '@feature-almanac/schema'
 import type { BehaviourHandle, CategoryHandle, Compilation, FeatureHandle } from './compile.js'
 import { REMOVED } from './config.js'
+import { matchesReview, type ReviewFilter } from './review.js'
 
 /** Exit code 3. */
 export class NotFoundError extends Error {}
@@ -81,6 +82,8 @@ export interface ListOptions {
   platform?: string
   owner?: string
   tag?: string
+  /** Behaviours by where they stand with reviewers; implies behaviours. */
+  review?: ReviewFilter
   includeRemoved?: boolean
 }
 
@@ -91,7 +94,8 @@ export type Listed =
 
 /** `almanac list`. Without `--level`, lists behaviours when `--feature` is given, features otherwise. */
 export function listEntities(model: Almanac, options: ListOptions): Listed[] {
-  const level = options.level ?? (options.feature !== undefined ? 'behaviour' : 'feature')
+  const level = options.level ?? (options.feature !== undefined || options.review !== undefined ? 'behaviour' : 'feature')
+  if (options.review !== undefined && level !== 'behaviour') throw new UsageError('--review lists behaviours; leave out --level or use --level behaviour')
   const platform = options.platform
   const statusOn = (status: Record<string, string>, platforms: readonly string[]) =>
     (platform === undefined ? platforms : platforms.filter((p) => p === platform)).map((p) => status[p])
@@ -123,6 +127,7 @@ export function listEntities(model: Almanac, options: ListOptions): Listed[] {
         continue
       }
       for (const behaviour of feature.behaviours) {
+        if (options.review !== undefined && matchesReview(behaviour, options.review) === false) continue
         if (keep(behaviour.status, behaviour.platforms) && (options.tag === undefined || behaviour.tags.includes(options.tag))) {
           out.push({ level: 'behaviour', entity: behaviour, feature, category })
         }

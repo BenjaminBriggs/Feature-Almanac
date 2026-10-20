@@ -59,7 +59,7 @@
     var walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT, {
       acceptNode: function (node) {
         var parent = node.parentElement
-        if (parent === null || parent.closest('script, style, svg, .chip, kbd, .sr, mark, .intro, .finder, .glitch, .ghost, .unfold:not(.open)') !== null) return NodeFilter.FILTER_REJECT
+        if (parent === null || parent.closest('script, style, svg, .chip, kbd, .sr, mark, .intro, .finder, .glitch, .ghost, .rv, .rv-legend, .card-review, .unfold:not(.open)') !== null) return NodeFilter.FILTER_REJECT
         return node.nodeValue.trim() === '' ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT
       },
     })

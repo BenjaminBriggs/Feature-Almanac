@@ -55,6 +55,7 @@ In a patch, a behaviour's description is one string: `"description": "Saves the 
 
 ```bash
 almanac list --json                        # features (use --level category|behaviour, --category N, --feature N.M)
+almanac list --review rejected --json      # behaviours a reviewer rejected, with their note (also unreviewed|changed|approved|needed)
 almanac show PD-1.2 --json                 # one entity; --platform android resolves variants
 almanac show 1.2.3 --with-changelog        # Markdown, with history
 almanac build --out /tmp/almanac.json     # the whole compiled model, for broad questions

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { Behaviour, Category, Feature, Almanac, Variant } from '@feature-almanac/schema'
+import { reviewState, type Behaviour, type Category, type Feature, type Almanac, type Variant } from '@feature-almanac/schema'
 import { embedJson, escapeHtml, plainText, renderMarkdown } from './html.js'
 import { groupByValue, isLive, platformList, platformName } from './model.js'
 import { statusLabel, type SiteOptions } from './options.js'
@@ -49,7 +49,8 @@ export function renderSite(model: Almanac, options: SiteOptions): string {
   const features = categories.flatMap((category) =>
     category.features.filter((feature) => isLive(feature.status)).map((feature) => ({ category, feature })),
   )
-  const behaviours = features.reduce((sum, { feature }) => sum + feature.behaviours.filter((behaviour) => isLive(behaviour.status)).length, 0)
+  const live = features.flatMap(({ feature }) => feature.behaviours.filter((behaviour) => isLive(behaviour.status)))
+  const behaviours = live.length
   const example = features.flatMap(({ feature }) => feature.behaviours)[0]?.ref ?? features[0]?.feature.ref
   const index = buildSearchIndex(searchDocuments(model, options))
   const generated = new Date(model.generatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -89,6 +90,7 @@ ${css}
 <div class="count count-lime"><span class="count-num">${features.length}</span><span class="count-label">${noun(features.length, 'Feature')}</span></div>
 <div class="count count-line"><span class="count-num">${categories.length}</span><span class="count-label">${noun(categories.length, 'Category', 'Categories')}</span></div>
 </div>
+${behaviours === 0 ? '' : `<div class="count count-review"><span class="count-label">Product review · ${tally(live).approved} of ${behaviours} approved</span>${reviewBar(tally(live))}${reviewLegend(tally(live))}</div>`}
 </div>
 </div>
 </section>
@@ -171,13 +173,16 @@ ${features.length === 0 ? '<p class="empty">No features yet.</p>' : `<ul class="
 }
 
 function renderCard(model: Almanac, options: SiteOptions, feature: Feature): string {
-  const live = feature.behaviours.filter((behaviour) => isLive(behaviour.status)).length
+  const behaviours = feature.behaviours.filter((behaviour) => isLive(behaviour.status))
+  const live = behaviours.length
+  const counts = tally(behaviours)
   return `<li class="card" data-feature="${escapeHtml(feature.id)}">
 <a class="card-main" href="#${escapeHtml(feature.id)}" aria-expanded="false" aria-controls="${escapeHtml(feature.id)}">
 <span class="card-top"><span class="chip">${escapeHtml(feature.ref)}</span><span class="card-count">${pad(live)} ${noun(live, 'behaviour')}</span></span>
 <span class="cond card-title">${escapeHtml(feature.name)}</span>
 <span class="card-desc">${escapeHtml(plainText(feature.description))}</span>
 <span class="plats">${platformBadges(model, options, feature.status, false)}</span>
+${live === 0 ? '' : `<span class="card-review">${reviewBar(counts)}<span class="card-review-label">${counts.approved} of ${live} approved${counts.rejected === 0 ? '' : ` · <span class="is-rejected">${counts.rejected} rejected</span>`}${counts.changed === 0 ? '' : ` · ${counts.changed} changed`}</span></span>`}
 </a>
 <div class="matches" hidden></div>
 </li>`
@@ -196,6 +201,7 @@ function renderPanel(model: Almanac, options: SiteOptions, feature: Feature): st
 <div class="md lead">${renderMarkdown(feature.description)}</div>
 <p class="plats">${platformBadges(model, options, feature.status, true)}</p>
 <p class="meta">Owner ${escapeHtml(owner)}${feature.links.map((link) => ` · <a href="${escapeHtml(link.url)}">${escapeHtml(link.title)}</a>`).join('')}</p>
+${live.length === 0 ? '' : `<div class="side-review">${reviewBar(tally(live))}${reviewLegend(tally(live))}</div>`}
 <p class="side-actions"><button type="button" class="review-feature" data-feature="${id}">Review these</button></p>
 <p><a class="close" href="#" aria-label="Close ${escapeHtml(feature.name)}">Close <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 10l5-5 5 5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square"></path></svg></a></p>
 </div>
@@ -227,7 +233,7 @@ function renderBehaviour(model: Almanac, options: SiteOptions, feature: Feature,
   return `<li class="behaviour" id="${escapeHtml(behaviour.id)}" data-hash="${escapeHtml(behaviour.hash)}"${review === '' ? '' : ` data-review="${review}"`}>
 <a class="chip" href="#${escapeHtml(behaviour.id)}">${escapeHtml(behaviour.ref)}</a>
 <div class="b-body">
-<h4>${escapeHtml(behaviour.name)}</h4>
+<div class="b-head"><h4>${escapeHtml(behaviour.name)}</h4>${removed ? '' : `<span class="rv is-${reviewState(behaviour)}">${REVIEW_LABELS[reviewState(behaviour)]}</span>`}</div>
 ${removed && behaviour.removedReason !== undefined ? `<p class="removed-reason">Removed: ${escapeHtml(behaviour.removedReason)}</p>` : ''}
 ${body}
 ${notes.length === 0 ? '' : `<p class="b-notes">${notes.map((note) => `<span class="b-note">${escapeHtml(note)}</span>`).join('')}</p>`}
@@ -243,6 +249,34 @@ function renderVariant(model: Almanac, options: SiteOptions, variant: Variant): 
   const status = groups.length === 1 ? ` <span class="v-status">(${escapeHtml(statusLabel(options, groups[0]?.[0] ?? '').toLowerCase())})</span>` : ''
   const lead = variant.mode === 'replace' ? '<span class="v-mode">Instead:</span> ' : ''
   return `<div class="variant"><dt>${escapeHtml(names)}${status}</dt><dd>${lead}${renderMarkdown(variant.description).replace(/^<p>|<\/p>$/g, '')}</dd></div>`
+}
+
+type ReviewTally = Record<ReturnType<typeof reviewState>, number>
+
+const REVIEW_ORDER = ['approved', 'rejected', 'changed', 'unreviewed'] as const
+const REVIEW_LABELS: Record<ReturnType<typeof reviewState>, string> = {
+  approved: 'Approved',
+  rejected: 'Rejected',
+  changed: 'Changed since review',
+  unreviewed: 'Not reviewed',
+}
+
+function tally(behaviours: readonly Behaviour[]): ReviewTally {
+  const counts: ReviewTally = { approved: 0, rejected: 0, changed: 0, unreviewed: 0 }
+  for (const behaviour of behaviours) counts[reviewState(behaviour)]++
+  return counts
+}
+
+/** One segment per review state, as wide as its share of the behaviours. */
+function reviewBar(counts: ReviewTally): string {
+  const segments = REVIEW_ORDER.filter((state) => counts[state] > 0).map((state) => `<span class="rv-seg is-${state}" style="flex-grow:${counts[state]}"></span>`)
+  return `<span class="rv-bar" aria-hidden="true">${segments.join('')}</span>`
+}
+
+function reviewLegend(counts: ReviewTally): string {
+  const labels = { approved: 'approved', rejected: 'rejected', changed: 'changed since review', unreviewed: 'not reviewed' }
+  const items = REVIEW_ORDER.filter((state) => counts[state] > 0).map((state) => `<span class="is-${state}">${counts[state]} ${labels[state]}</span>`)
+  return `<p class="rv-legend">${items.join('')}</p>`
 }
 
 /** Who approved or rejected the behaviour, or that it changed after they did. */

@@ -251,6 +251,9 @@ platforms:
       stdout: 'Recorded 1 review\nWrote 1 file\nSkipped: PD-1.1.1 changed after it was reviewed; review it again\n',
     })
     expect((await h.almanac('show', '1.1.1')).stdout).toContain('- Review: approved by Sam Price on 2026-10-19\n')
+    expect((await h.almanac('list', '--review', 'approved')).stdout).toBe('1.1.1  Bold formatting  approved by Sam Price on 2026-10-19\n')
+    expect((await h.almanac('list', '--review', 'needed')).stderr).toContain('Nothing matches.')
+    expect((await h.almanac('list', '--level', 'feature', '--review', 'rejected')).code).toBe(2)
   })
 
   it('set writes typed values, including one platform of a status', async () => {
@@ -372,6 +375,7 @@ platforms:
     expect(generate).toContain('Verify every feature with `/almanac-verify`')
     expect(generate).toContain('Write each behaviour as a one-line summary followed by Given/When/Then')
     expect(h.fs.readFile(join(CWD, '.claude/skills/almanac/SKILL.md'))).toContain('## Writing behaviours: Given / When / Then')
+    expect(h.fs.readFile(join(CWD, '.claude/commands/almanac-review.md'))).toContain('`almanac list --review rejected --json`')
     expect((await h.almanac('agent', 'install')).stdout).toBe('Already up to date.\n')
     expect((await h.almanac('agent', 'install', '--global')).stdout).toContain('Wrote ../home/tester/.claude/skills/almanac/SKILL.md')
     expect((await h.almanac('agent', 'install', '--tool', 'cursor')).code).toBe(2)

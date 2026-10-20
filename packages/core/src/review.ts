@@ -24,3 +24,5 @@ function normalise(text: string): string {
     .join('\n')
     .trim()
 }
+
+export { REVIEW_FILTERS, matchesReview, reviewState, type ReviewFilter } from '@feature-almanac/schema'

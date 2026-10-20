@@ -8,7 +8,7 @@ import type { Wrap } from '../program.js'
 
 const ASSETS = fileURLToPath(new URL('../../assets/agent/', import.meta.url))
 
-/** A tool-neutral workflow (generate, update, verify, ask) from `assets/agent/workflows/`. */
+/** A tool-neutral workflow (generate, update, verify, review, ask) from `assets/agent/workflows/`. */
 interface Workflow {
   name: string
   /** Frontmatter: `description`, `argument-hint`, `input` and `when`. */
@@ -46,7 +46,7 @@ const TOOLS: Record<string, Tool> = {
       path: `commands/almanac-${name}.md`,
       frontmatter: { description: field(meta, 'description'), 'argument-hint': field(meta, 'argument-hint') },
     }),
-    note: () => 'In Claude Code: /almanac-generate to build an almanac from this codebase, /almanac-update after a code change, /almanac-ask to query it.',
+    note: () => 'In Claude Code: /almanac-generate to build an almanac from this codebase, /almanac-update after a code change, /almanac-review with a reviewer\'s decisions file, /almanac-ask to query it.',
   },
   copilot: {
     project: '.github',
@@ -63,8 +63,8 @@ const TOOLS: Record<string, Tool> = {
           },
     note: (global) =>
       global
-        ? 'Copilot now has the almanac skill in every project. Its prompts (/almanac-generate, /almanac-update, /almanac-verify, /almanac-ask) are per repository: run agent install --tool copilot in one.'
-        : 'In Copilot Chat: /almanac-generate to build an almanac from this codebase, /almanac-update after a code change, /almanac-ask to query it.',
+        ? 'Copilot now has the almanac skill in every project. Its prompts (/almanac-generate, /almanac-update, /almanac-verify, /almanac-review, /almanac-ask) are per repository: run agent install --tool copilot in one.'
+        : 'In Copilot Chat: /almanac-generate to build an almanac from this codebase, /almanac-update after a code change, /almanac-review with a reviewer\'s decisions file, /almanac-ask to query it.',
     ci: [
       ['almanac-verify.md', 'workflows/almanac-verify.md'],
       ['almanac.instructions.md', 'instructions/almanac.instructions.md'],
@@ -79,7 +79,7 @@ const TOOLS: Record<string, Tool> = {
       path: `skills/almanac-${name}/SKILL.md`,
       frontmatter: { name: `almanac-${name}`, description: `${field(meta, 'description')}. ${field(meta, 'when')}` },
     }),
-    note: () => 'In Codex: $almanac-generate to build an almanac from this codebase, $almanac-update after a code change, $almanac-ask to query it.',
+    note: () => 'In Codex: $almanac-generate to build an almanac from this codebase, $almanac-update after a code change, $almanac-review with a reviewer\'s decisions file, $almanac-ask to query it.',
   },
 }
 
@@ -87,7 +87,7 @@ export function registerAgentCommands(program: Command, wrap: Wrap): void {
   const agent = program.command('agent').description('Agent integration (§13)')
   agent
     .command('install')
-    .description('Install the Feature Almanac skill and its generate, update, verify and ask workflows for an agent')
+    .description('Install the Feature Almanac skill and its generate, update, verify, review and ask workflows for an agent')
     .option('--tool <tools>', 'claude, copilot or codex; a comma-separated list installs several', 'claude')
     .option('--global', 'install for every project (in your home folder) instead of this one')
     .option('--ci', 'with --tool copilot, also install the pull request checks: an agentic workflow and Copilot code review instructions')

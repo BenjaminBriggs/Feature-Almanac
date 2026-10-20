@@ -305,6 +305,34 @@ html.panel-open .main::after { content: ''; position: fixed; inset: 0; z-index: 
 .removed summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); }
 .removed .behaviour { color: var(--ink-2); }
 .removed-reason { margin: 0; font-size: 15px; padding: 8px 12px; border-left: 4px solid var(--red); background: var(--soft); }
+/* Review state. Lime approved, red rejected, dashed changed since review, hollow not reviewed:
+   a tag on each behaviour, a bar on each card and panel, and a tally in the hero. */
+.b-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 14px; }
+.rv {
+  flex: none; display: inline-flex; align-items: center; gap: 7px; padding: 3px 8px; border: 1.5px solid var(--line); color: var(--ink-2); white-space: nowrap;
+  font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.rv::before, .rv-legend span::before { content: ''; flex: none; width: 9px; height: 9px; border: 1.5px solid var(--ink-2); }
+.rv.is-approved { border-color: var(--status-line); color: var(--ink); }
+.rv.is-rejected { background: var(--red-fill); border-color: var(--red-fill); color: #FFFFFF; }
+.rv.is-rejected::before { background: #FFFFFF; border-color: #FFFFFF; }
+.rv.is-changed { border-style: dashed; border-color: var(--ink-2); color: var(--ink); }
+.rv.is-approved::before, .rv-legend .is-approved::before { background: var(--lime); border-color: var(--status-line); }
+.rv-legend .is-rejected::before { background: var(--red-fill); border-color: var(--red-fill); }
+.rv.is-changed::before, .rv-legend .is-changed::before { border-style: dashed; }
+.rv-bar { display: flex; height: 8px; border: 1.5px solid var(--ink); background: var(--card); }
+.rv-seg { min-width: 3px; }
+.rv-seg.is-approved { background: var(--lime); }
+.rv-seg.is-rejected { background: var(--red-fill); }
+.rv-seg.is-changed { background: repeating-linear-gradient(135deg, var(--ink-2) 0 1.5px, transparent 1.5px 4px); }
+.rv-legend, .card-review-label { margin: 0; font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); }
+.rv-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.rv-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.card-review { display: flex; flex-direction: column; gap: 6px; }
+.card-review-label .is-rejected { color: var(--red); }
+.side-review { display: flex; flex-direction: column; gap: 8px; }
+.count-review { padding: 16px 18px; border: 3px solid var(--ink); gap: 10px; }
+.count-review .rv-bar { height: 14px; border-width: 2px; }
 .b-review { margin: 0; display: flex; align-items: baseline; gap: 8px; font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: 0.04em; color: var(--ink-2); }
 .b-review::before { content: ''; flex: none; width: 10px; height: 10px; border: 1.5px solid var(--ink-2); transform: translateY(1px); }
 .b-review.is-approved::before { background: var(--lime); border-color: var(--status-line); }

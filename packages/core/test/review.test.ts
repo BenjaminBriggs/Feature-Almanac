@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { commitChanges, compile, loadWorkspace, parsePatch, planPatch, reviewHash, type Compilation } from '@feature-almanac/core'
+import { commitChanges, compile, listEntities, loadWorkspace, parsePatch, planPatch, reviewHash, type Compilation } from '@feature-almanac/core'
 import { BASE, FEATURE, ROOT, memoryFs } from './helpers.js'
 
 const NOW = new Date('2026-10-20T12:00:00Z')
@@ -72,6 +72,13 @@ describe('review ops', () => {
     const edit = parsePatch({ almanac: 1, ops: [{ op: 'describe', ref: '1.1.2', description: 'Saves the note after two seconds of idle input.' }] })
     const result = commitChanges(reviewed, planPatch(reviewed, edit, NOW).changes)
     expect(result.after.behaviours.get('1.1.2')?.model.review).toMatchObject({ state: 'approved', by: 'Sam Price', stale: true })
+    const model = result.after.model
+    if (model === undefined) throw new Error('no model')
+    const ids = (review: 'unreviewed' | 'changed' | 'approved' | 'rejected' | 'needed') => listEntities(model, { review }).map((item) => item.entity.id)
+    expect(ids('changed')).toEqual(['1.1.2'])
+    expect(ids('approved')).toEqual([])
+    expect(ids('unreviewed')).toEqual(['1.1.1'])
+    expect(ids('needed')).toEqual(['1.1.1', '1.1.2'])
   })
 
   it('need a note to reject, and a behaviour to review', () => {
