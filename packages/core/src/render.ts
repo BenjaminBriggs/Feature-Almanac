@@ -127,6 +127,10 @@ function behaviourBody(model: Almanac, feature: Feature, behaviour: Behaviour, p
   for (const source of behaviour.source) meta.push(`Source: ${source.path}${source.symbol !== undefined ? `#${source.symbol}` : ''}`)
   if (behaviour.formerly.length > 0) meta.push(`Formerly: ${behaviour.formerly.join(', ')}`)
   if (behaviour.removedReason !== undefined) meta.push(`Removed: ${behaviour.removedReason}`)
+  if (behaviour.review !== undefined) {
+    const { review } = behaviour
+    meta.push(`Review: ${review.state} by ${review.by} on ${review.date}${review.note === undefined ? '' : ` (${review.note})`}${review.stale ? '; changed since, needs reviewing again' : ''}`)
+  }
   lines.push(...meta.map((line) => `- ${line}`))
   if (platform === undefined) {
     for (const variant of behaviour.variants) {

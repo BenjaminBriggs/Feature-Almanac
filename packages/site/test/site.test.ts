@@ -32,7 +32,7 @@ describe('renderSite', () => {
     expect(html).toContain('<a class="card-main" href="#1.1" aria-expanded="false" aria-controls="1.1">')
     expect(html).toContain('</li>\n<li class="unfold" id="1.1" data-feature="1.1" tabindex="-1" aria-labelledby="t-1.1">')
     expect(html).not.toContain('class="sheet"')
-    expect(html).toContain('<li class="behaviour" id="1.1.2">\n<a class="chip" href="#1.1.2">EX-1.1.2</a>')
+    expect(html).toMatch(/<li class="behaviour" id="1\.1\.2" data-hash="[0-9a-f]{8}">\n<a class="chip" href="#1\.1\.2">EX-1\.1\.2<\/a>/)
     expect(html).toContain('<p class="b-summary">Saves the note a second after typing stops.</p><div class="steps"><ol><li><span class="kw">Given</span> a note with unsaved edits')
     expect(html).toContain('<dt>iOS &amp; iPadOS</dt>')
     expect(html).toContain('<span class="v-mode">Instead:</span>')
@@ -55,6 +55,22 @@ describe('renderSite', () => {
   it('starts in the saved or system theme, with a toggle', () => {
     expect(html).toContain("localStorage.getItem('almanac-theme')")
     expect(html).toContain('<button type="button" class="theme-toggle"')
+  })
+
+  it('shows reviews, and offers review mode from the bar and each panel', () => {
+    const reviewed = structuredClone(model)
+    const [bold, autosave] = reviewed.categories[0]?.features[0]?.behaviours ?? []
+    if (bold === undefined || autosave === undefined) throw new Error('no 1.1.1 or 1.1.2')
+    bold.review = { state: 'approved', by: 'Sam Price', date: '2026-10-19', hash: bold.hash, stale: false }
+    autosave.review = { state: 'rejected', by: 'Sam Price', date: '2026-10-19', note: 'Too slow.', hash: '00000000', stale: true }
+    const page = renderSite(reviewed, siteOptions(reviewed, undefined))
+    expect(page).toContain(`<li class="behaviour" id="1.1.1" data-hash="${bold.hash}" data-review="approved">`)
+    expect(page).toContain('<p class="b-review is-approved">Approved by Sam Price, 19 Oct 2026</p>')
+    expect(page).toContain('data-review="changed"')
+    expect(page).toContain('<p class="b-review is-changed">Changed since Sam Price rejected it on 19 Oct 2026</p>')
+    expect(html).toContain('<button type="button" class="review-open" aria-haspopup="dialog">Review')
+    expect(html).toContain('<button type="button" class="review-feature" data-feature="1.1">Review these</button>')
+    expect(html).toContain('<div class="review" role="dialog" aria-modal="true" aria-labelledby="review-title" hidden>')
   })
 
   it('counts what is live in the hero', () => {

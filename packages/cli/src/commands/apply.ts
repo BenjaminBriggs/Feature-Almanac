@@ -31,9 +31,12 @@ export function registerApplyCommand(program: Command, wrap: Wrap): void {
           ctx.out(renderDiff(plan.changes, root))
         } else {
           for (const item of plan.created) ctx.out(`Added ${item.level} ${item.id}${item.as === undefined ? '' : ` (${item.as})`}`)
+          const reviews = plan.edits.filter((edit) => edit.kind === 'review').length
+          if (reviews > 0) ctx.out(`Recorded ${reviews} review${reviews === 1 ? '' : 's'}`)
           ctx.out(`Wrote ${files.length} file${files.length === 1 ? '' : 's'}`)
         }
-        ctx.envelope(true, { created: plan.created, files, dryRun: ctx.dryRun })
+        for (const item of plan.skipped) ctx.out(`Skipped: ${item.reason}`)
+        ctx.envelope(true, { created: plan.created, files, skipped: plan.skipped, dryRun: ctx.dryRun })
         return EXIT.ok
       }),
     )

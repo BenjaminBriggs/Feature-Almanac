@@ -88,6 +88,18 @@ export const variantSchema = z.strictObject({
   removed_reason: z.string().optional(),
 })
 
+export const REVIEW_STATES = ['approved', 'rejected'] as const
+export const REVIEW_HASH_RE = /^[0-9a-f]{8}$/
+
+/** A person's verdict on a behaviour, with the hash of the text they judged (§ review). */
+export const reviewSchema = z.strictObject({
+  state: z.enum(REVIEW_STATES),
+  by: z.string().min(1),
+  date: z.string().regex(DATE_RE),
+  note: z.string().optional(),
+  hash: z.string().regex(REVIEW_HASH_RE),
+})
+
 export const behaviourSchema = z.strictObject({
   id: z.string(),
   name: z.string().min(1).max(80),
@@ -103,6 +115,7 @@ export const behaviourSchema = z.strictObject({
   formerly: z.array(z.string()).optional(),
   removed_reason: z.string().optional(),
   variants: z.array(variantSchema).optional(),
+  review: reviewSchema.optional(),
 })
 
 export const changeSchema = z.strictObject({
@@ -159,6 +172,7 @@ export type CategoryFile = z.infer<typeof categorySchema>
 export type FeatureFile = z.infer<typeof featureSchema>
 export type BehaviourEntry = z.infer<typeof behaviourSchema>
 export type VariantEntry = z.infer<typeof variantSchema>
+export type ReviewEntry = z.infer<typeof reviewSchema>
 export type ChangelogEntryFile = z.infer<typeof changelogEntrySchema>
 export type ChangeEntry = z.infer<typeof changeSchema>
 export type StatusValue = z.infer<typeof statusValue>
@@ -237,6 +251,19 @@ export const patchMoveOpSchema = z.strictObject({
   to: z.string(),
 })
 
+/** Records a reviewer's verdict; skipped when `hash` no longer matches the behaviour's text. */
+export const patchReviewOpSchema = z
+  .strictObject({
+    op: z.literal('review'),
+    ref: z.string(),
+    state: z.enum(REVIEW_STATES),
+    by: z.string().min(1),
+    date: z.string().regex(DATE_RE).optional(),
+    note: z.string().optional(),
+    hash: z.string().regex(REVIEW_HASH_RE),
+  })
+  .refine((op) => op.state === 'approved' || (op.note ?? '').trim() !== '', 'a rejection needs a note saying why')
+
 export const PATCH_OP_SCHEMAS = {
   add: patchAddOpSchema,
   set: patchSetOpSchema,
@@ -244,6 +271,7 @@ export const PATCH_OP_SCHEMAS = {
   rename: patchRenameOpSchema,
   remove: patchRemoveOpSchema,
   move: patchMoveOpSchema,
+  review: patchReviewOpSchema,
 } as const
 
 export const patchChangelogEntrySchema = z.strictObject({
@@ -274,5 +302,6 @@ export type PatchDescribeOp = z.infer<typeof patchDescribeOpSchema>
 export type PatchRenameOp = z.infer<typeof patchRenameOpSchema>
 export type PatchRemoveOp = z.infer<typeof patchRemoveOpSchema>
 export type PatchMoveOp = z.infer<typeof patchMoveOpSchema>
-export type PatchOp = PatchAddOp | PatchSetOp | PatchDescribeOp | PatchRenameOp | PatchRemoveOp | PatchMoveOp
+export type PatchReviewOp = z.infer<typeof patchReviewOpSchema>
+export type PatchOp = PatchAddOp | PatchSetOp | PatchDescribeOp | PatchRenameOp | PatchRemoveOp | PatchMoveOp | PatchReviewOp
 export type PatchChangelogEntry = z.infer<typeof patchChangelogEntrySchema>

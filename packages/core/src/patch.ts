@@ -12,7 +12,9 @@ import {
   moveEntity,
   removeEntity,
   renameEntity,
+  reviewBehaviour,
   setValues,
+  StaleReviewError,
   withChangelogEntry,
   type Mutation,
 } from './mutations.js'
@@ -34,10 +36,18 @@ export interface PatchEdit {
   from?: string
 }
 
+/** A review op left out because the behaviour changed after the reviewer judged it. */
+export interface PatchSkipped {
+  op: number
+  ref: string
+  reason: string
+}
+
 export interface PatchPlan {
   changes: FileChange[]
   created: PatchCreated[]
   edits: PatchEdit[]
+  skipped: PatchSkipped[]
 }
 
 /** Parses and validates a patch document; problems are usage errors naming the op. */
@@ -63,6 +73,7 @@ export function planPatch(baseline: Compilation, patch: Patch, now: Date, option
   const touched = new Map<string, Touched>()
   const created: PatchCreated[] = []
   const edits: PatchEdit[] = []
+  const skipped: PatchSkipped[] = []
   const auto = patch.changelog === undefined || patch.changelog === 'auto'
   const ownChangelog = patch.changelog === 'none' || Array.isArray(patch.changelog)
   let current = baseline
@@ -102,6 +113,22 @@ export function planPatch(baseline: Compilation, patch: Patch, now: Date, option
       throw new UsageError(`ops[${index}].${issue?.path.join('.') ?? ''}: ${issue?.message ?? 'invalid'}`)
     }
     const op = parsed.data as PatchOp
+    if (op.op === 'review') {
+      // A verdict on text that has since changed is stale: leave it out, apply the rest.
+      const ref = placeholder(op.ref, index)
+      let reviewed: Mutation
+      try {
+        reviewed = reviewBehaviour(current, { ref, state: op.state, by: op.by, hash: op.hash, ...(op.date !== undefined ? { date: op.date } : {}), ...(op.note !== undefined ? { note: op.note } : {}), now })
+      } catch (error) {
+        if (error instanceof StaleReviewError === false) throw error
+        skipped.push({ op: index, ref, reason: error.message })
+        return
+      }
+      edits.push({ op: index, kind: op.op, id: reviewed.id, ...(reviewed.id !== ref ? { from: ref } : {}) })
+      applyChanges(overlay, reviewed.changes)
+      current = compile(loadWorkspace(workspace.root, overlay), options)
+      return
+    }
     let mutation: Mutation
     if (op.op === 'add') {
       mutation = applyAdd(op, index)
@@ -247,7 +274,7 @@ export function planPatch(baseline: Compilation, patch: Patch, now: Date, option
     }
   }
 
-  return { changes: overlay.changes(), created, edits }
+  return { changes: overlay.changes(), created, edits, skipped }
 }
 
 interface Touched {

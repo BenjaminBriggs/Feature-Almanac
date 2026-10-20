@@ -20,8 +20,8 @@ interface RuleDefinition {
 
 /**
  * §10 lint rules available without git history. ALM-E020, ALM-E021 and ALM-W020 arrive with
- * `lint --against` in v0.3. ALM-E012, ALM-E013, ALM-W017 and ALM-W018 are additions: counters,
- * category removal, empty features and removal propagation.
+ * `lint --against` in v0.3. ALM-E012, ALM-E013, ALM-E014, ALM-W017 and ALM-W018 are additions:
+ * counters, category removal, reviews, empty features and removal propagation.
  */
 export const RULES = {
   'ALM-E001': { severity: 'error', summary: 'File is not valid YAML 1.2' },
@@ -37,6 +37,7 @@ export const RULES = {
   'ALM-E011': { severity: 'error', summary: 'Removed entity without reason' },
   'ALM-E012': { severity: 'error', summary: 'ID counter is not ahead of every used ID' },
   'ALM-E013': { severity: 'error', summary: 'Removed category still contains live features' },
+  'ALM-E014': { severity: 'error', summary: 'Rejected review without a note' },
   'ALM-E030': { severity: 'error', summary: 'Behaviour platforms not within feature platforms' },
   'ALM-E031': { severity: 'error', summary: 'Variant platforms not within behaviour platforms' },
   'ALM-E032': { severity: 'error', summary: 'Variants of one behaviour overlap' },

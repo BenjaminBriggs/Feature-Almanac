@@ -24,6 +24,7 @@ The root holds `almanac.yaml` (product, prefix, platforms, statuses). Find it wi
 6. **Lint after every write**: `almanac lint --json`. Fix every error before finishing. A write that would add errors is rejected and nothing is written; the rejection lists the errors it would have added.
 7. **Cite IDs** (`PD-1.2.3`) in tickets, PR descriptions and commit messages.
 8. **Removing is a tombstone.** `remove` keeps the entity with `status: removed` and a `removed_reason`; nothing is deleted. Remove only what the user confirms is gone, and never to tidy up.
+9. **Reviews come from people.** A behaviour's `review:` records a person's approval or rejection, made on the website and recorded with `almanac apply` of the file they download. Never write `review` ops yourself, and never edit a behaviour just to make a review current. Changing a behaviour's text is fine: its review lapses on its own and the behaviour goes back in the queue. Treat a rejection's `note` as the product's view of how the behaviour should work, and raise it with the user rather than resolving it silently.
 
 ## Writing behaviours: Given / When / Then
 

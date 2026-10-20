@@ -105,6 +105,7 @@ ${css}
 <kbd aria-hidden="true">/</kbd>
 <button type="button" class="clear" hidden>Clear</button>
 </div>
+<button type="button" class="review-open" aria-haspopup="dialog">Review<span class="review-badge" hidden></span></button>
 <button type="button" class="theme-toggle" aria-label="Switch between light and dark"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="2"></circle><path d="M10 2a8 8 0 0 1 0 16z" fill="currentColor"></path></svg><span class="label"><span class="to-light">Light</span><span class="to-dark">Dark</span></span></button>
 </div>
 <div class="search-status" role="status" aria-live="polite"></div>
@@ -124,6 +125,8 @@ ${categories.map((category) => `<li><a href="#cat-${escapeHtml(category.id)}" da
 
 ${categories.map((category) => renderCategory(model, options, category)).join('\n')}
 </main>
+
+${renderReviewDialog(categories)}
 
 <footer class="site-footer">
 <div class="wrap">
@@ -193,6 +196,7 @@ function renderPanel(model: Almanac, options: SiteOptions, feature: Feature): st
 <div class="md lead">${renderMarkdown(feature.description)}</div>
 <p class="plats">${platformBadges(model, options, feature.status, true)}</p>
 <p class="meta">Owner ${escapeHtml(owner)}${feature.links.map((link) => ` · <a href="${escapeHtml(link.url)}">${escapeHtml(link.title)}</a>`).join('')}</p>
+<p class="side-actions"><button type="button" class="review-feature" data-feature="${id}">Review these</button></p>
 <p><a class="close" href="#" aria-label="Close ${escapeHtml(feature.name)}">Close <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 10l5-5 5 5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square"></path></svg></a></p>
 </div>
 <div class="unfold-body">
@@ -219,13 +223,15 @@ function renderBehaviour(model: Almanac, options: SiteOptions, feature: Feature,
           )
           .join('')}</div>`
   const variants = behaviour.variants.filter((variant) => removed || variant.status === undefined || isLive(variant.status))
-  return `<li class="behaviour" id="${escapeHtml(behaviour.id)}">
+  const review = behaviour.review === undefined ? '' : behaviour.review.stale ? 'changed' : behaviour.review.state
+  return `<li class="behaviour" id="${escapeHtml(behaviour.id)}" data-hash="${escapeHtml(behaviour.hash)}"${review === '' ? '' : ` data-review="${review}"`}>
 <a class="chip" href="#${escapeHtml(behaviour.id)}">${escapeHtml(behaviour.ref)}</a>
 <div class="b-body">
 <h4>${escapeHtml(behaviour.name)}</h4>
 ${removed && behaviour.removedReason !== undefined ? `<p class="removed-reason">Removed: ${escapeHtml(behaviour.removedReason)}</p>` : ''}
 ${body}
 ${notes.length === 0 ? '' : `<p class="b-notes">${notes.map((note) => `<span class="b-note">${escapeHtml(note)}</span>`).join('')}</p>`}
+${removed ? '' : renderReview(behaviour)}
 ${variants.length === 0 ? '' : `<dl class="variants">${variants.map((variant) => renderVariant(model, options, variant)).join('')}</dl>`}
 </div>
 </li>`
@@ -237,6 +243,60 @@ function renderVariant(model: Almanac, options: SiteOptions, variant: Variant): 
   const status = groups.length === 1 ? ` <span class="v-status">(${escapeHtml(statusLabel(options, groups[0]?.[0] ?? '').toLowerCase())})</span>` : ''
   const lead = variant.mode === 'replace' ? '<span class="v-mode">Instead:</span> ' : ''
   return `<div class="variant"><dt>${escapeHtml(names)}${status}</dt><dd>${lead}${renderMarkdown(variant.description).replace(/^<p>|<\/p>$/g, '')}</dd></div>`
+}
+
+/** Who approved or rejected the behaviour, or that it changed after they did. */
+function renderReview(behaviour: Behaviour): string {
+  const review = behaviour.review
+  if (review === undefined) return ''
+  const date = new Date(`${review.date}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+  const verb = review.state === 'approved' ? 'Approved' : 'Rejected'
+  if (review.stale) return `<p class="b-review is-changed">Changed since ${escapeHtml(review.by)} ${verb.toLowerCase()} it on ${escapeHtml(date)}</p>`
+  const note = review.note === undefined ? '' : `: ${escapeHtml(review.note)}`
+  return `<p class="b-review is-${review.state}">${verb} by ${escapeHtml(review.by)}, ${escapeHtml(date)}${note}</p>`
+}
+
+/**
+ * Review mode: one behaviour at a time with Approve and Reject. Decisions stay in the browser until the
+ * reviewer downloads them as an `almanac apply` patch for someone to apply.
+ */
+function renderReviewDialog(categories: Category[]): string {
+  return `<div class="review" role="dialog" aria-modal="true" aria-labelledby="review-title" hidden>
+<div class="review-inner">
+<div class="review-head">
+<h2 id="review-title" class="cond">Review</h2>
+<label class="review-field">Show <select class="review-scope"><option value="">Every category</option>${categories.map((category) => `<option value="${escapeHtml(category.id)}">${escapeHtml(pad(category.id))} ${escapeHtml(category.name)}</option>`).join('')}</select></label>
+<label class="review-check"><input type="checkbox" class="review-pending" checked> Only what needs a decision</label>
+<button type="button" class="close review-close">Close</button>
+</div>
+<p class="review-progress" role="status" aria-live="polite"></p>
+<article class="review-item">
+<p class="review-context"></p>
+<p class="review-feature-desc"></p>
+<div class="review-behaviour"></div>
+<p class="review-decision"></p>
+</article>
+<p class="review-done" hidden>Nothing left to decide here. Download your decisions below, or choose more to review.</p>
+<div class="review-actions">
+<button type="button" class="review-approve">Approve</button>
+<button type="button" class="review-reject">Reject</button>
+<button type="button" class="review-back">Back</button>
+<button type="button" class="review-next">Skip</button>
+</div>
+<form class="review-why" hidden>
+<label for="review-note">What should it do instead?</label>
+<textarea id="review-note" rows="3"></textarea>
+<div class="review-actions"><button type="submit" class="review-reject">Reject</button><button type="button" class="review-cancel">Cancel</button></div>
+</form>
+<div class="review-foot">
+<label class="review-field">Your name <input class="review-name" autocomplete="name"></label>
+<span class="review-count"></span>
+<button type="button" class="review-download" disabled>Download decisions</button>
+<button type="button" class="review-clear" disabled>Clear</button>
+<p class="review-help">Your decisions stay in this browser until you download them. Send the file to whoever looks after the almanac; they record it with <code>almanac apply</code>.</p>
+</div>
+</div>
+</div>`
 }
 
 /** Plain-language notes where a behaviour differs from its feature. */

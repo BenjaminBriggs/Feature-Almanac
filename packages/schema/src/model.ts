@@ -77,6 +77,9 @@ export interface Behaviour {
   gherkin?: GherkinScenario[]
   /** For gherkin, the plain line written above the steps. */
   summary?: string
+  /** Hash of the text a reviewer judges: name, description and variants. */
+  hash: string
+  review?: Review
   source: SourceRef[]
   tags: string[]
   flag?: string
@@ -119,6 +122,17 @@ export interface ChangelogEntry {
   ticket?: { id: string; url?: string }
   author?: string
   changes: Change[]
+}
+
+export interface Review {
+  state: 'approved' | 'rejected'
+  by: string
+  date: string
+  note?: string
+  /** The hash the reviewer saw. */
+  hash: string
+  /** The text has changed since, so the verdict no longer applies. */
+  stale: boolean
 }
 
 export interface GherkinScenario {

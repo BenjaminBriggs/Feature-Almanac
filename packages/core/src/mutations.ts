@@ -653,6 +653,37 @@ export function describeEntity(compilation: Compilation, input: DescribeInput): 
   return edited(located, `Updated the ${key} of ${located.label}.`, changeOf(located, 'modified'), input)
 }
 
+// review
+
+export interface ReviewInput {
+  ref: string
+  state: 'approved' | 'rejected'
+  by: string
+  /** The hash of the text the reviewer judged. */
+  hash: string
+  /** When they decided; today when not given. */
+  date?: string
+  note?: string
+  now: Date
+}
+
+/** The behaviour's text changed after the reviewer judged it, so the verdict can't be recorded. */
+export class StaleReviewError extends InvalidStateError {}
+
+/** Records a reviewer's verdict, replacing any earlier one. It changes no behaviour, so it writes no changelog entry. */
+export function reviewBehaviour(compilation: Compilation, input: ReviewInput): Mutation {
+  const located = locate(compilation, input.ref)
+  if (located.target.kind !== 'behaviour') throw new UsageError(`Only behaviours are reviewed; ${located.id} is a ${located.level}`)
+  const behaviour = located.target.behaviour.model
+  if (behaviour.hash !== input.hash) throw new StaleReviewError(`${behaviour.ref} changed after it was reviewed; review it again`)
+  const note = input.note?.trim() ?? ''
+  if (input.state === 'rejected' && note === '') throw new UsageError(`Rejecting ${behaviour.ref} needs a note saying why`)
+  const by = input.by.trim()
+  if (by === '') throw new UsageError('A review needs the name of the person who made it')
+  setKey(located.doc, located.node, 'review', { state: input.state, by, date: input.date ?? isoDate(input.now), ...(note === '' ? {} : { note }), hash: input.hash })
+  return { changes: [write(located.file, finish(located.doc, located.file.kind))], id: located.id, file: located.file.absPath, redirects: located.redirects, changelog: [] }
+}
+
 // rename
 
 export interface RenameInput extends EditOptions {

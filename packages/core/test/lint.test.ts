@@ -114,6 +114,10 @@ changelog:
     },
     fixable: true,
   },
+  'rejected review without a note': {
+    code: 'ALM-E014',
+    files: edit(FEATURE, ['    name: Autosave\n', '    name: Autosave\n    review:\n      state: rejected\n      by: Sam Price\n      date: "2026-10-20"\n      hash: "0000abcd"\n']),
+  },
   'removed category with live features': {
     code: 'ALM-E013',
     files: edit('01-editing/category.yaml', ['next_feature: 2', 'status: removed\nremoved_reason: Merged into Sync\nnext_feature: 2']),

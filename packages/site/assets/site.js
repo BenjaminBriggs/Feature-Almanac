@@ -1,4 +1,4 @@
-/* Feature Almanac site: search, unfolding feature panels and deep links. The page works without this script. */
+/* Feature Almanac site: search, unfolding feature panels, deep links and review. The page works without this script. */
 (function () {
   'use strict'
 
@@ -449,8 +449,8 @@
         return
       }
     }
-    // A click anywhere else on the page, outside the search bar, folds the open panel away.
-    if (openPanel !== null && openPanel.contains(event.target) === false && finder.contains(event.target) === false) close()
+    // A click anywhere else on the page, outside the search bar and review, folds the open panel away.
+    if (openPanel !== null && openPanel.contains(event.target) === false && finder.contains(event.target) === false && reviewBox.contains(event.target) === false) close()
   })
   window.addEventListener('popstate', function () {
     route()
@@ -460,6 +460,14 @@
   })
 
   document.addEventListener('keydown', function (event) {
+    if (reviewBox.hidden === false) {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        if (whyForm.hidden === false) cancelReject()
+        else closeReview()
+      }
+      return
+    }
     if (event.key === 'Escape' && openPanel !== null) {
       event.preventDefault()
       close()
@@ -528,6 +536,306 @@
       // Private windows can refuse storage; the choice then lasts for this page only.
     }
   })
+
+  // Review: a reviewer approves or rejects behaviours one at a time. Decisions stay in this browser
+  // until they download them as an `almanac apply` patch, which records each with the hash of the
+  // text they judged, so a behaviour that has changed since isn't approved by mistake.
+
+  var reviewBox = document.querySelector('.review')
+  var reviewTrigger = document.querySelector('.review-open')
+  var reviewBadge = reviewTrigger.querySelector('.review-badge')
+  var scopeSelect = reviewBox.querySelector('.review-scope')
+  var pendingOnly = reviewBox.querySelector('.review-pending')
+  var progress = reviewBox.querySelector('.review-progress')
+  var article = reviewBox.querySelector('.review-item')
+  var done = reviewBox.querySelector('.review-done')
+  var actions = reviewBox.querySelector('.review-actions')
+  var whyForm = reviewBox.querySelector('.review-why')
+  var whyText = whyForm.querySelector('textarea')
+  var nameInput = reviewBox.querySelector('.review-name')
+  var downloadButton = reviewBox.querySelector('.review-download')
+  var clearReviewButton = reviewBox.querySelector('.review-clear')
+  var REVIEW_KEY = 'almanac-review:' + (prefix || document.title)
+  var NAME_KEY = 'almanac-reviewer'
+
+  var reviewItems = Array.prototype.slice.call(document.querySelectorAll('.unfold .behaviour'))
+    .filter(function (row) {
+      return row.closest('.removed') === null
+    })
+    .map(function (row) {
+      var panel = row.closest('.unfold')
+      return {
+        row: row,
+        id: row.id,
+        ref: row.querySelector('.chip').textContent,
+        hash: row.dataset.hash,
+        review: row.dataset.review || '',
+        panel: panel,
+        feature: panel.dataset.feature,
+        category: row.closest('.category').dataset.category,
+      }
+    })
+  var byId = {}
+  reviewItems.forEach(function (item) {
+    byId[item.id] = item
+  })
+
+  function readStore(key, fallback) {
+    try {
+      var value = localStorage.getItem(key)
+      return value === null ? fallback : JSON.parse(value)
+    } catch (error) {
+      return fallback
+    }
+  }
+
+  function writeStore(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value))
+    } catch (error) {
+      // Without storage, decisions last until the page closes; downloading still works.
+    }
+  }
+
+  // A decision on text that has changed since no longer applies; one the almanac already records is done.
+  var decisions = {}
+  var dropped = 0
+  var stored = readStore(REVIEW_KEY, {})
+  Object.keys(stored).forEach(function (id) {
+    var item = byId[id]
+    if (item === undefined || item.hash !== stored[id].hash) dropped++
+    else if (item.review !== stored[id].state) decisions[id] = stored[id]
+  })
+  writeStore(REVIEW_KEY, decisions)
+  nameInput.value = readStore(NAME_KEY, '')
+
+  var queue = []
+  var position = 0
+
+  function today() {
+    var now = new Date()
+    var pad2 = function (n) {
+      return (n < 10 ? '0' : '') + n
+    }
+    return now.getFullYear() + '-' + pad2(now.getMonth() + 1) + '-' + pad2(now.getDate())
+  }
+
+  function decidedCount() {
+    return Object.keys(decisions).length
+  }
+
+  function needsDecision(item) {
+    return item.review === '' || item.review === 'changed' || decisions[item.id] !== undefined
+  }
+
+  function buildQueue() {
+    var scope = scopeSelect.value
+    queue = reviewItems.filter(function (item) {
+      if (scope.indexOf('feature:') === 0) {
+        if (item.feature !== scope.slice(8)) return false
+      } else if (scope !== '' && item.category !== scope) return false
+      return pendingOnly.checked === false || needsDecision(item)
+    })
+    position = 0
+    while (position < queue.length && decisions[queue[position].id] !== undefined) position++
+    if (position === queue.length && queue.length > 0 && pendingOnly.checked === false) position = 0
+  }
+
+  function syncCounts() {
+    var count = decidedCount()
+    reviewBadge.hidden = count === 0
+    reviewBadge.textContent = count
+    reviewBox.querySelector('.review-count').textContent = count === 0 ? 'No decisions yet' : plural(count, 'decision')
+    downloadButton.disabled = count === 0
+    clearReviewButton.disabled = count === 0
+  }
+
+  function describeDecision(item) {
+    var decision = decisions[item.id]
+    if (decision === undefined) return ''
+    return decision.state === 'approved' ? 'You approved this.' : 'You rejected this: ' + decision.note
+  }
+
+  function showItem() {
+    whyForm.hidden = true
+    var item = queue[position]
+    var decided = queue.filter(function (entry) {
+      return decisions[entry.id] !== undefined
+    }).length
+    article.hidden = item === undefined
+    done.hidden = item !== undefined
+    reviewBox.querySelector('.review-approve').disabled = item === undefined
+    reviewBox.querySelector('.review-reject').disabled = item === undefined
+    reviewBox.querySelector('.review-back').disabled = position === 0
+    reviewBox.querySelector('.review-next').disabled = item === undefined
+    var lead = dropped > 0 ? plural(dropped, 'earlier decision') + ' dropped because the behaviour changed. ' : ''
+    progress.textContent = lead + (queue.length === 0 ? 'Nothing to show' : (item === undefined ? 'End' : 'Behaviour ' + (position + 1)) + ' of ' + queue.length + ' · ' + decided + ' decided')
+    syncCounts()
+    if (item === undefined) return
+    reviewBox.querySelector('.review-context').textContent =
+      document.getElementById('c-' + item.category).textContent + ' › ' + item.panel.querySelector('.unfold-title').textContent
+    reviewBox.querySelector('.review-feature-desc').textContent = item.panel.querySelector('.lead').textContent.trim()
+    var holder = reviewBox.querySelector('.review-behaviour')
+    holder.textContent = ''
+    Array.prototype.forEach.call(item.row.children, function (child) {
+      var copy = child.cloneNode(true)
+      clearMarks(copy)
+      if (copy.tagName === 'A') copy.removeAttribute('href')
+      holder.appendChild(copy)
+    })
+    var decision = decisions[item.id]
+    reviewBox.querySelector('.review-decision').textContent = describeDecision(item)
+    reviewBox.querySelector('.review-approve').setAttribute('aria-pressed', String(decision !== undefined && decision.state === 'approved'))
+    reviewBox.querySelector('.review-reject').setAttribute('aria-pressed', String(decision !== undefined && decision.state === 'rejected'))
+  }
+
+  /** On to the next behaviour without a decision, or the end. */
+  function advance() {
+    var next = position + 1
+    while (next < queue.length && decisions[queue[next].id] !== undefined) next++
+    position = Math.min(next, queue.length)
+    showItem()
+  }
+
+  function decide(state, note) {
+    var item = queue[position]
+    if (item === undefined) return
+    decisions[item.id] = { state: state, hash: item.hash, date: today() }
+    if (note) decisions[item.id].note = note
+    writeStore(REVIEW_KEY, decisions)
+    advance()
+  }
+
+  function startReject() {
+    var item = queue[position]
+    if (item === undefined) return
+    var decision = decisions[item.id]
+    whyText.value = decision !== undefined && decision.note ? decision.note : ''
+    whyForm.hidden = false
+    actions.hidden = true
+    whyText.focus()
+  }
+
+  function cancelReject() {
+    whyForm.hidden = true
+    actions.hidden = false
+    reviewBox.querySelector('.review-reject').focus()
+  }
+
+  function openReview(scope) {
+    if (scope !== undefined) scopeSelect.value = scope
+    reviewBox.hidden = false
+    root.classList.add('reviewing')
+    actions.hidden = false
+    buildQueue()
+    showItem()
+    reviewBox.querySelector(queue.length > 0 ? '.review-approve' : '.review-close').focus()
+  }
+
+  function closeReview() {
+    reviewBox.hidden = true
+    root.classList.remove('reviewing')
+    reviewTrigger.focus({ preventScroll: true })
+  }
+
+  function slug(text) {
+    return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'reviewer'
+  }
+
+  /** The decisions as an `almanac apply` patch, in page order. */
+  function downloadDecisions() {
+    var name = nameInput.value.trim()
+    if (name === '') {
+      progress.textContent = 'Add your name first, so the file says who decided.'
+      nameInput.focus()
+      return
+    }
+    var ops = reviewItems
+      .filter(function (item) {
+        return decisions[item.id] !== undefined
+      })
+      .map(function (item) {
+        var decision = decisions[item.id]
+        var op = { op: 'review', ref: item.ref, state: decision.state, by: name, date: decision.date, hash: decision.hash }
+        if (decision.note) op.note = decision.note
+        return op
+      })
+    if (ops.length === 0) return
+    var patch = { almanac: 1, summary: 'Review by ' + name + '.', changelog: 'none', ops: ops }
+    var url = URL.createObjectURL(new Blob([JSON.stringify(patch, null, 2) + '\n'], { type: 'application/json' }))
+    var link = element('a')
+    link.href = url
+    link.download = 'review-' + slug(prefix || document.title) + '-' + slug(name) + '-' + today() + '.json'
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    setTimeout(function () {
+      URL.revokeObjectURL(url)
+    }, 1000)
+    progress.textContent = 'Downloaded ' + plural(ops.length, 'decision') + '. Send the file on, then clear them here.'
+  }
+
+  reviewTrigger.addEventListener('click', function () {
+    openReview()
+  })
+  Array.prototype.forEach.call(document.querySelectorAll('.review-feature'), function (button) {
+    button.addEventListener('click', function () {
+      var id = button.dataset.feature
+      var value = 'feature:' + id
+      if (scopeSelect.querySelector('option[value="' + value + '"]') === null) {
+        var option = element('option', '', 'Feature ' + (prefix ? prefix + '-' : '') + id + ' ' + document.getElementById('t-' + id).textContent)
+        option.value = value
+        scopeSelect.appendChild(option)
+      }
+      openReview(value)
+    })
+  })
+  reviewBox.querySelector('.review-close').addEventListener('click', closeReview)
+  reviewBox.querySelector('.review-approve').addEventListener('click', function () {
+    decide('approved')
+  })
+  actions.querySelector('.review-reject').addEventListener('click', startReject)
+  reviewBox.querySelector('.review-cancel').addEventListener('click', cancelReject)
+  whyForm.addEventListener('submit', function (event) {
+    event.preventDefault()
+    var note = whyText.value.trim()
+    if (note === '') {
+      whyText.focus()
+      return
+    }
+    actions.hidden = false
+    decide('rejected', note)
+    reviewBox.querySelector('.review-approve').focus()
+  })
+  reviewBox.querySelector('.review-back').addEventListener('click', function () {
+    position = Math.max(0, position - 1)
+    showItem()
+  })
+  reviewBox.querySelector('.review-next').addEventListener('click', function () {
+    position = Math.min(position + 1, queue.length)
+    showItem()
+  })
+  scopeSelect.addEventListener('change', function () {
+    buildQueue()
+    showItem()
+  })
+  pendingOnly.addEventListener('change', function () {
+    buildQueue()
+    showItem()
+  })
+  nameInput.addEventListener('input', function () {
+    writeStore(NAME_KEY, nameInput.value.trim())
+  })
+  downloadButton.addEventListener('click', downloadDecisions)
+  clearReviewButton.addEventListener('click', function () {
+    if (window.confirm('Clear ' + plural(decidedCount(), 'decision') + '? Download them first if you haven’t sent them.') === false) return
+    decisions = {}
+    dropped = 0
+    writeStore(REVIEW_KEY, decisions)
+    buildQueue()
+    showItem()
+  })
+  syncCounts()
 
   var initial = new URLSearchParams(location.search).get('q')
   if (initial) {

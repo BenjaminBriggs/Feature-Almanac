@@ -148,12 +148,14 @@ a.chip:hover { box-shadow: 2px 2px 0 var(--red); }
 .finder-search { width: 100%; max-width: 1320px; margin: 0 auto; padding: 12px 28px 0; display: flex; flex-direction: column; gap: 10px; }
 .finder-row { display: flex; gap: 12px; }
 .finder-row .searchbox { flex: 1 1 auto; min-width: 0; }
-.theme-toggle {
+.theme-toggle, .review-open {
   flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-width: 76px; padding: 0 18px;
   border: 3px solid var(--ink); background: var(--card); color: var(--ink); font-family: var(--mono); font-size: 13px;
   font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer;
 }
-.theme-toggle:hover { background: var(--ink); color: var(--card); }
+.theme-toggle:hover, .review-open:hover { background: var(--ink); color: var(--card); }
+.review-badge { min-width: 22px; padding: 2px 5px; background: var(--lime); color: var(--on-lime); text-align: center; }
+.no-js .review-open, .no-js .side-actions { display: none; }
 .theme-toggle .to-dark, [data-theme="light"] .theme-toggle .to-light { display: none; }
 [data-theme="light"] .theme-toggle .to-dark { display: inline; }
 .no-js .theme-toggle { display: none; }
@@ -303,6 +305,61 @@ html.panel-open .main::after { content: ''; position: fixed; inset: 0; z-index: 
 .removed summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); }
 .removed .behaviour { color: var(--ink-2); }
 .removed-reason { margin: 0; font-size: 15px; padding: 8px 12px; border-left: 4px solid var(--red); background: var(--soft); }
+.b-review { margin: 0; display: flex; align-items: baseline; gap: 8px; font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: 0.04em; color: var(--ink-2); }
+.b-review::before { content: ''; flex: none; width: 10px; height: 10px; border: 1.5px solid var(--ink-2); transform: translateY(1px); }
+.b-review.is-approved::before { background: var(--lime); border-color: var(--status-line); }
+.b-review.is-rejected::before { background: var(--red-fill); border-color: var(--red-fill); }
+.b-review.is-changed::before { border-style: dashed; }
+.side-actions { margin: 0; }
+.review-feature {
+  min-height: 44px; padding: 0 14px; border: 2px solid var(--ink); background: var(--lime); color: var(--on-lime); cursor: pointer;
+  font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+}
+
+/* Review: one behaviour at a time over the whole page, Approve and Reject under it, the download at the foot. */
+html.reviewing { overflow: hidden; }
+.review { position: fixed; inset: 0; z-index: 40; overflow-y: auto; overscroll-behavior: contain; background: var(--bg); }
+.review-inner { max-width: 960px; margin: 0 auto; padding: 28px 28px 48px; display: flex; flex-direction: column; gap: 18px; }
+.review-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.review-head h2 { margin: 0 auto 0 0; font-size: 64px; line-height: 0.9; }
+.review-field, .review-check, .review-progress, .review-context, .review-count {
+  font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2);
+}
+.review-field { display: flex; align-items: center; gap: 10px; }
+.review-field select, .review-field input {
+  min-height: 44px; max-width: 100%; padding: 0 12px; border: 2px solid var(--ink); background: var(--card); color: var(--ink);
+  font: 500 15px var(--display); letter-spacing: 0; text-transform: none;
+}
+.review-check { display: flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; }
+.review-check input { width: 18px; height: 18px; accent-color: var(--lime); }
+.review-progress { margin: 0; min-height: 1.4em; }
+.review-item { display: flex; flex-direction: column; gap: 10px; padding: 26px 28px; background: var(--card); border: 3px solid var(--ink); box-shadow: 10px 10px 0 var(--red); }
+.review-context, .review-feature-desc, .review-decision { margin: 0; }
+.review-feature-desc { color: var(--ink-2); font-size: 15px; line-height: 1.45; }
+.review-behaviour { display: grid; grid-template-columns: max-content minmax(0, 1fr); column-gap: 18px; margin-top: 8px; padding-top: 18px; border-top: 1px solid var(--line); }
+.review-behaviour > .chip { align-self: start; margin-top: 4px; }
+.review-behaviour .b-body h4 { font-size: 30px; }
+.review-decision:empty { display: none; }
+.review-decision { padding: 10px 14px; background: var(--soft); border-left: 4px solid var(--lime); font-weight: 600; }
+.review-done { margin: 0; padding: 40px; border: 3px dashed var(--line); font-size: 17px; }
+/* Approve and Reject stay in reach under a long behaviour. */
+.review-actions { position: sticky; bottom: 0; z-index: 1; display: flex; flex-wrap: wrap; gap: 12px; padding: 12px 0; background: var(--bg); }
+.review-actions button, .review-foot button {
+  min-height: 56px; padding: 0 24px; border: 3px solid var(--ink); background: var(--card); color: var(--ink); cursor: pointer;
+  font-family: var(--mono); font-size: 14px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.review-actions .review-approve { min-width: 180px; background: var(--lime); color: var(--on-lime); }
+.review-actions .review-reject { min-width: 180px; background: var(--red-fill); border-color: var(--red-fill); color: #FFFFFF; }
+.review-actions [aria-pressed="true"] { outline: 3px solid var(--focus); outline-offset: 3px; }
+.review-actions .review-back { margin-left: auto; }
+.review-actions button:disabled, .review-foot button:disabled { opacity: 0.4; cursor: default; }
+.review-actions button:not(:disabled):hover, .review-foot button:not(:disabled):hover { box-shadow: 4px 4px 0 var(--ink); }
+.review-why { display: flex; flex-direction: column; gap: 10px; }
+.review-why label { font-weight: 700; font-size: 17px; }
+.review-why textarea { width: 100%; min-height: 110px; padding: 12px 14px; border: 3px solid var(--ink); background: var(--card); color: var(--ink); font: 16px/1.45 var(--display); resize: vertical; }
+.review-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; margin-top: 12px; padding-top: 20px; border-top: 3px solid var(--ink); }
+.review-foot .review-download { background: var(--ink); color: var(--card); }
+.review-help { flex-basis: 100%; margin: 0; font-size: 14px; line-height: 1.45; color: var(--ink-2); }
 
 /* Too narrow to sit beside the heading: the numeral moves up into the gap above it. */
 @media (max-width: 1180px) {
@@ -334,6 +391,13 @@ html.panel-open .main::after { content: ''; position: fixed; inset: 0; z-index: 
   .unfold-body { padding: 4px 20px 20px; }
   .behaviours { grid-template-columns: minmax(0, 1fr); }
   .behaviour > .chip { margin-top: 0; }
+  .review-open { padding: 0 12px; }
+  .review-inner { padding: 20px 16px 40px; }
+  .review-head h2 { font-size: 48px; }
+  .review-item { padding: 20px; box-shadow: 6px 6px 0 var(--red); }
+  .review-behaviour { grid-template-columns: minmax(0, 1fr); row-gap: 8px; }
+  .review-actions .review-approve, .review-actions .review-reject { flex: 1 1 40%; min-width: 0; }
+  .review-actions .review-back { margin-left: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .card, .card:hover { transition: none; transform: none; }
@@ -341,7 +405,7 @@ html.panel-open .main::after { content: ''; position: fixed; inset: 0; z-index: 
   .behaviour.flash { animation: none; }
 }
 @media print {
-  .intro, .finder, .close, .site-footer, .ghost { display: none !important; }
+  .intro, .finder, .close, .site-footer, .ghost, .review, .side-actions { display: none !important; }
   .js .unfold { display: grid; position: static; overflow: visible; transform: none; box-shadow: none; }
   html.panel-open .main::after { display: none; }
   .unfold-side { position: static; }

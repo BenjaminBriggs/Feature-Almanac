@@ -14,7 +14,8 @@ const CODE_KEYS = ['repo', 'ref', 'path']
 const CATEGORY_KEYS = ['id', 'name', 'description', 'owner', 'status', 'removed_reason', 'next_feature']
 const FEATURE_KEYS = ['id', 'name', 'description', 'owner', 'status', 'platforms', 'since', 'tags', 'depends_on', 'related', 'links', 'code', 'assets', 'fields', 'overview', 'formerly', 'removed_reason', 'next_behaviour', 'behaviours', 'changelog']
 const LINK_KEYS = ['type', 'title', 'url']
-const BEHAVIOUR_KEYS = ['id', 'name', 'description', 'format', 'platforms', 'status', 'since', 'source', 'tags', 'flag', 'fields', 'formerly', 'removed_reason', 'variants']
+const BEHAVIOUR_KEYS = ['id', 'name', 'description', 'format', 'platforms', 'status', 'since', 'source', 'tags', 'flag', 'fields', 'formerly', 'removed_reason', 'variants', 'review']
+const REVIEW_KEYS = ['state', 'by', 'date', 'note', 'hash']
 const VARIANT_KEYS = ['platforms', 'description', 'mode', 'status', 'since', 'source', 'removed_reason']
 const ENTRY_KEYS = ['date', 'summary', 'changes', 'version', 'platforms', 'ticket', 'author']
 const CHANGE_KEYS = ['added', 'modified', 'removed', 'moved', 'feature', 'detail']
@@ -60,6 +61,12 @@ function formatFeature(root: YAMLMap): void {
         quoteVersions(variant.get('since', true))
       })
       blockStyle(variants)
+      const review = behaviour.get('review', true)
+      if (isMap(review)) {
+        orderKeys(review, REVIEW_KEYS)
+        quote(review.get('date', true))
+        quote(review.get('hash', true))
+      }
     })
     // A comment above the first item is stored on the list; keep it with that item when sorting.
     const first = behaviours.items[0]

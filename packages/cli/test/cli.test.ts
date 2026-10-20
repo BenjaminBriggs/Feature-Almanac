@@ -193,7 +193,7 @@ platforms:
     const result = await h.almanac('site', 'build')
     expect(result).toMatchObject({ code: 0, stdout: 'Wrote dist/site/index.html (0 errors, 0 warnings)\n' })
     const page = h.fs.readFile(join(CWD, 'dist/site/index.html')) ?? ''
-    expect(page).toContain('<li class="behaviour" id="1.1.1">')
+    expect(page).toMatch(/<li class="behaviour" id="1\.1\.1" data-hash="[0-9a-f]{8}">/)
     expect(page).toContain('window.MiniSearch')
     expect(h.fs.readFile(join(CWD, 'dist/site/almanac.json'))).toContain('"name": "Markdown editor"')
   })
@@ -232,6 +232,25 @@ platforms:
     expect(behaviour).toMatchObject({ format: 'gherkin', summary: 'Inserts a two-by-two table at the cursor.' })
     expect(behaviour.gherkin[0].steps).toHaveLength(3)
     expect((await h.almanac('apply', 'missing.json')).code).toBe(2)
+  })
+
+  it('apply records a review file and says which decisions were on changed text', async () => {
+    const h = await seeded()
+    const hash = (await h.almanac('--json', 'show', '1.1.1')).json().data as { entity: { hash: string } }
+    h.setStdin(JSON.stringify({
+      almanac: 1,
+      summary: 'Review by Sam Price.',
+      changelog: 'none',
+      ops: [
+        { op: 'review', ref: 'PD-1.1.1', state: 'approved', by: 'Sam Price', date: '2026-10-19', hash: hash.entity.hash },
+        { op: 'review', ref: 'PD-1.1.1', state: 'rejected', by: 'Sam Price', note: 'Wrong.', hash: '00000000' },
+      ],
+    }))
+    expect(await h.almanac('apply', '-')).toMatchObject({
+      code: 0,
+      stdout: 'Recorded 1 review\nWrote 1 file\nSkipped: PD-1.1.1 changed after it was reviewed; review it again\n',
+    })
+    expect((await h.almanac('show', '1.1.1')).stdout).toContain('- Review: approved by Sam Price on 2026-10-19\n')
   })
 
   it('set writes typed values, including one platform of a status', async () => {

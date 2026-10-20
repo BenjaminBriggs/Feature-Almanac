@@ -35,6 +35,7 @@ import {
 import type { z } from 'zod'
 import { REMOVED, resolveConfig, type ResolvedConfig } from './config.js'
 import { parseGherkin } from './gherkin.js'
+import { reviewHash } from './review.js'
 import { categoryDirName, featureFileName } from './names.js'
 import { expandPlatforms } from './platforms.js'
 import { validate } from './schema-check.js'
@@ -617,6 +618,10 @@ class Compiler {
     })
 
     const description = data.description.trimEnd()
+    const hash = reviewHash({ name: data.name, description, variants })
+    if (data.review?.state === 'rejected' && isBlank(data.review.note)) {
+      report('ALM-E014', `Behaviour ${id} is rejected without a note saying why`, [...base, 'review'])
+    }
     const resolved: PlatMap = {}
     for (const platform of platforms) {
       const j = coveredBy.get(platform)
@@ -644,6 +649,8 @@ class Compiler {
       ...(data.removed_reason !== undefined ? { removedReason: data.removed_reason } : {}),
       variants,
       resolved,
+      hash,
+      ...(data.review !== undefined ? { review: { ...data.review, stale: data.review.hash !== hash } } : {}),
       line: lineAt(file.parsed, base) ?? 1,
     }
     this.result.behaviours.set(id, { feature, index, data, model })

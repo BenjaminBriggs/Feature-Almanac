@@ -31,6 +31,7 @@ almanac/
 - **Behaviours cite code.** `source: [Sources/Editor/EditorView.swift#toggleBold]`, relative to `code.path` in `almanac.yaml`, so an agent can check the almanac against the code.
 - **Behaviours read as Given / When / Then.** Gherkin (cucumber) is the default format: a one-line summary, then the starting state, the one trigger and what the user observes. The schema doesn't enforce it. Prose is still allowed with `format: prose`, and an existing prose behaviour is converted when it's next rewritten. The site shows the summary above the steps, with their keywords.
 - **Every write is recorded.** Each feature carries a changelog, which the CLI writes for you.
+- **People ratify behaviours.** A product person approves or rejects each behaviour on the website (see [Reviewing behaviours](#reviewing-behaviours)). An approval names who gave it and lapses when the behaviour's text changes.
 
 ## Install
 
@@ -347,7 +348,43 @@ The site is one self-contained HTML page you can host anywhere or attach to a ti
 - **Category cards:** each category's features as cards. A card unfolds into a panel the height of the window, over everything else, listing every behaviour with its platforms, variants and status. The panel scrolls on its own while the page behind it holds still.
 - **Sticky search and category bar:** search across names, descriptions and IDs, and jump between categories from the bar as you scroll.
 - **Deep links:** `#1.2` opens a feature's panel, and `#1.2.3` (or `#EX-1.2.3`) opens it scrolled to that behaviour.
+- **Review mode:** the **Review** button in the bar, or **Review these** in a feature's panel (next section).
 - **No JavaScript needed to read it:** everything is pre-rendered.
+
+### Reviewing behaviours
+
+Someone who knows how the product should behave, but doesn't work in the code, can ratify the almanac from the website. Nothing to install: the published site is enough.
+
+1. **Review.** **Review** in the search bar shows one behaviour at a time: its category and feature for context, the summary, the steps, the platforms and the variants. **Approve** if that's how the product should behave. **Reject** if it isn't, and say what it should do instead (a reason is required). **Skip** and **Back** move without deciding. By default it shows only what needs a decision: behaviours nobody has reviewed, and ones that changed after their review. Choose a category to work through one area at a time, or start from a feature's **Review these**.
+2. **Download.** Decisions stay in the reviewer's browser until they enter their name and press **Download decisions**. That saves a file such as `review-ex-sam-price-2026-10-20.json`, which they send to whoever looks after the almanac.
+3. **Record.** The file is an ordinary patch of `review` ops, so recording it is one command, followed by a commit:
+
+   ```bash
+   almanac apply review-ex-sam-price-2026-10-20.json
+   ```
+
+   ```
+   Recorded 41 reviews
+   Wrote 6 files
+   Skipped: EX-1.2.3 changed after it was reviewed; review it again
+   ```
+
+Each verdict is stored on its behaviour with a hash of the text the reviewer saw:
+
+```yaml
+  - id: "1.1.2"
+    name: Autosave
+    description: |
+      …
+    review:
+      state: rejected
+      by: Sam Price
+      date: "2026-10-20"
+      note: It should save on every change, not after a pause.
+      hash: "3f9a1c2e"
+```
+
+The hash covers the name, description and variants, but not status, platforms or sources. When the text changes, the review stays in the file but no longer counts: the site shows "Changed since Sam Price approved it" and puts the behaviour back in the review queue. A decision on text that changed between review and `apply` is skipped and reported, as above, rather than recorded against words the reviewer never read. `almanac show` prints each behaviour's review. Reviews write no changelog entry, because they change nothing about the behaviour; git history keeps the trail. A rejection is a disagreement to resolve: fix the code, or correct the behaviour and have it reviewed again.
 
 ### Publishing with GitHub Pages
 
