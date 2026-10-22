@@ -1,0 +1,60 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "6.7"
+name: Category bar
+description: Jump between categories from a bar that stays on screen.
+owner: ben
+status: shipped
+platforms: [web]
+next_behaviour: 5
+
+behaviours:
+  - id: "6.7.1"
+    name: Stays at the top
+    description: |
+      Keeps a bar of categories at the top of the window with the search box.
+      When the user scrolls past the hero
+      Then the search box and, under it, a bar listing every category by number and name, as in "06 Website", stay pinned to the top of the window
+      And when the categories don't fit, the bar scrolls sideways without showing a scrollbar
+    source: [packages/site/src/render.ts#renderSite, packages/site/assets/site.css]
+
+  - id: "6.7.2"
+    name: Jump to a category
+    description: |
+      Scrolls to a category when the user clicks it in the bar.
+      When the user clicks a category in the bar
+      Then the page scrolls to that category, stopping 24px below the bar, smoothly unless the system asks for reduced motion
+      And the address ends with "#cat-" and the category's number, so the link opens the page at that category
+    source: [packages/site/src/render.ts#renderSite, packages/site/assets/site.css]
+
+  - id: "6.7.3"
+    name: Marks where the reader is
+    description: |
+      Highlights the category being read.
+      When the user scrolls the page
+      Then the last category whose top has passed a line 120px below the bar is highlighted in lime in the bar, which scrolls sideways to keep it centred
+      And at the bottom of the page the last category is highlighted
+      And while a feature's panel is open, its category is highlighted
+    source: [packages/site/assets/site.js#updateCurrent]
+
+  - id: "6.7.4"
+    name: Follows the search
+    description: |
+      Lists only the categories that a search leaves on the page.
+      Given a search is typed
+      When the results appear
+      Then the bar lists only the categories that still have cards on the page
+      And when nothing matches the bar is hidden
+    source: [packages/site/assets/site.js#syncNav]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "6.7.1"
+      - added: "6.7.2"
+      - added: "6.7.3"
+      - added: "6.7.4"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

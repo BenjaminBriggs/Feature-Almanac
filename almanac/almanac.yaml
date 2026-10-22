@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/config.json
+almanac: 1
+next_category: 10
+product:
+  name: Feature Almanac
+  prefix: FA
+  description: A git-stored spec of everything an app does, and the almanac CLI that keeps it.
+code:
+  repo: https://github.com/BenjaminBriggs/Feature-Almanac
+  ref: main
+  path: ..
+platforms:
+  cli: {name: Command line}
+  web: {name: Website}
+  claude: {name: Claude Code}
+  copilot: {name: GitHub Copilot}
+  codex: {name: OpenAI Codex}
+  actions: {name: GitHub Actions}
+platform_groups:
+  agents: [claude, copilot, codex]
+owners:
+  ben: {name: Ben Briggs}

@@ -1,0 +1,172 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "8.1"
+name: Installing for a tool
+description: Install the skill and workflows for Claude Code, Copilot or Codex.
+owner: ben
+status: shipped
+platforms: [agents]
+next_behaviour: 11
+
+behaviours:
+  - id: "8.1.1"
+    name: Install into a project
+    description: |
+      Writes the almanac skill and its five workflows into the project for the chosen agent.
+      Given the user is in the root of their app's repository
+      When the user runs `almanac agent install --tool <tool>`
+      Then the `almanac` skill and the generate, update, verify, review and ask workflows are written into that tool's folder in the project
+      And each file is listed as "Wrote <path>", relative to the current folder
+    source: [packages/cli/src/commands/agent.ts#registerAgentCommands, packages/cli/src/commands/agent.ts#TOOLS]
+    variants:
+      - platforms: [claude]
+        description: In Claude Code the skill goes to `.claude/skills/almanac/SKILL.md` and each workflow to a command, `.claude/commands/almanac-<workflow>.md`.
+        source: [packages/cli/src/commands/agent.ts#TOOLS]
+      - platforms: [copilot]
+        description: For Copilot the skill goes to `.github/skills/almanac/SKILL.md` and each workflow to a prompt file, `.github/prompts/almanac-<workflow>.prompt.md`, set to run in agent mode.
+        source: [packages/cli/src/commands/agent.ts#TOOLS]
+      - platforms: [codex]
+        description: For Codex the skill goes to `.agents/skills/almanac/SKILL.md` and each workflow becomes a skill of its own, `.agents/skills/almanac-<workflow>/SKILL.md`, whose description says when to use it.
+        source: [packages/cli/src/commands/agent.ts#TOOLS]
+
+  - id: "8.1.2"
+    name: Claude Code by default
+    description: |
+      Installs for Claude Code when no tool is named.
+      Given the user is in the root of their app's repository
+      When the user runs `almanac agent install` without `--tool`
+      Then the skill and workflows are installed for Claude Code, as with `--tool claude`
+    platforms: [claude]
+    source: [packages/cli/src/commands/agent.ts#registerAgentCommands]
+
+  - id: "8.1.3"
+    name: How to run the workflows
+    description: |
+      Ends the install with a line saying how to run the workflows in that tool.
+      When an install writes at least one file for a tool
+      Then it prints one line for that tool naming the commands for the generate, update, review and ask workflows
+      But a tool whose files were all up to date gets no line
+    source: [packages/cli/src/commands/agent.ts#TOOLS]
+    variants:
+      - platforms: [claude]
+        description: "For Claude Code the line is \"In Claude Code: /almanac-generate to build an almanac from this codebase, /almanac-update after a code change, /almanac-review with a reviewer's decisions file, /almanac-ask to query it.\""
+        source: [packages/cli/src/commands/agent.ts#TOOLS]
+      - platforms: [copilot]
+        description: "For Copilot the line is \"In Copilot Chat: /almanac-generate to build an almanac from this codebase, /almanac-update after a code change, /almanac-review with a reviewer's decisions file, /almanac-ask to query it.\""
+        source: [packages/cli/src/commands/agent.ts#TOOLS]
+      - platforms: [codex]
+        description: "For Codex the line is \"In Codex: $almanac-generate to build an almanac from this codebase, $almanac-update after a code change, $almanac-review with a reviewer's decisions file, $almanac-ask to query it.\""
+        source: [packages/cli/src/commands/agent.ts#TOOLS]
+
+  - id: "8.1.4"
+    name: Several tools at once
+    description: |
+      Installs for more than one agent in a single command.
+      When the user runs `almanac agent install --tool claude,copilot,codex`
+      Then each named tool gets its own copy of the skill and workflows in its own folder
+      And a tool named twice is installed once
+    source: [packages/cli/src/commands/agent.ts#registerAgentCommands]
+
+  - id: "8.1.5"
+    name: Install for every project
+    description: |
+      Installs into the home folder so every project gets the skill and workflows.
+      When the user runs `almanac agent install --tool <tool> --global`
+      Then the skill and workflows are written into that tool's folder in the user's home folder instead of the project
+    source: [packages/cli/src/commands/agent.ts#registerAgentCommands, packages/cli/src/commands/agent.ts#TOOLS]
+    variants:
+      - platforms: [claude]
+        description: Claude Code gets the skill and the commands in `~/.claude/skills/almanac/` and `~/.claude/commands/`.
+        source: [packages/cli/src/commands/agent.ts#TOOLS]
+      - platforms: [copilot]
+        description: 'Copilot gets only the skill, in `~/.copilot/skills/almanac/SKILL.md`, because its prompt files are per repository, and the install prints "Copilot now has the almanac skill in every project. Its prompts (/almanac-generate, /almanac-update, /almanac-verify, /almanac-review, /almanac-ask) are per repository: run agent install --tool copilot in one."'
+        source: [packages/cli/src/commands/agent.ts#TOOLS]
+      - platforms: [codex]
+        description: Codex gets the skill and the five workflow skills in `~/.agents/skills/`.
+        source: [packages/cli/src/commands/agent.ts#TOOLS]
+
+  - id: "8.1.6"
+    name: Reinstalling refreshes what changed
+    description: |
+      Running the install again rewrites only the files that differ from the current templates.
+      Given the skill and workflows are already installed
+      When the user runs the same `almanac agent install` command again
+      Then only files that differ from the templates in the installed CLI are rewritten and listed as "Wrote <path>"
+      And when nothing differs it prints "Already up to date."
+      But an installed file the user edited by hand is overwritten with the template, except the `applyTo` line of Copilot's code review instructions, which keeps the user's globs
+    source: [packages/cli/src/commands/agent.ts#registerAgentCommands, packages/cli/src/commands/agent.ts#keepApplyTo]
+
+  - id: "8.1.7"
+    name: Preview the files
+    description: |
+      Shows the files an install would write without writing them.
+      When the user runs `almanac --dry-run agent install --tool <tool>`
+      Then it prints a diff of every file it would write or change
+      But nothing is written and no how-to-run line is printed
+    source: [packages/cli/src/commands/agent.ts#registerAgentCommands]
+
+  - id: "8.1.8"
+    name: Unknown tools are refused
+    description: |
+      Rejects a tool it can't install for, without writing anything.
+      When the user runs `almanac agent install --tool cursor`, alone or alongside a supported tool such as `--tool claude,cursor`
+      Then it prints "error: --tool cursor is not supported; use claude, copilot or codex"
+      And it exits with code 2
+      But no file is written for any tool
+    source: [packages/cli/src/commands/agent.ts#registerAgentCommands]
+
+  - id: "8.1.9"
+    name: Pull request checks with --ci
+    description: |
+      Adds Copilot's pull request checks to the project alongside the skill and prompts.
+      Given the user is in the root of their app's repository
+      When the user runs `almanac agent install --tool copilot --ci`
+      Then it also writes `.github/workflows/almanac-verify.md` and `.github/instructions/almanac.instructions.md`
+      And it prints "Before Copilot checks pull requests:" followed by the setup steps still to do
+      But the setup steps are printed only when one of those two files was written
+    platforms: [copilot]
+    source: [packages/cli/src/commands/agent.ts#registerAgentCommands, packages/cli/src/commands/agent.ts#checksNote]
+
+  - id: "8.1.10"
+    name: --ci needs Copilot in a repository
+    description: |
+      Refuses --ci when it can't install the checks.
+      Scenario: Combined with --global
+      When the user runs `almanac agent install --tool copilot --ci --global`
+      Then it prints "error: --ci installs into a repository, so it cannot be combined with --global" and exits with code 2
+
+      Scenario: Without Copilot
+      When the user runs `almanac agent install --tool claude --ci`
+      Then it prints "error: --ci installs pull request checks for Copilot; add --tool copilot" and exits with code 2
+    source: [packages/cli/src/commands/agent.ts#registerAgentCommands]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "8.1.6"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "8.1.1"
+      - added: "8.1.1@claude"
+      - added: "8.1.1@copilot"
+      - added: "8.1.1@codex"
+      - added: "8.1.2"
+      - added: "8.1.3"
+      - added: "8.1.3@claude"
+      - added: "8.1.3@copilot"
+      - added: "8.1.3@codex"
+      - added: "8.1.4"
+      - added: "8.1.5"
+      - added: "8.1.5@claude"
+      - added: "8.1.5@copilot"
+      - added: "8.1.5@codex"
+      - added: "8.1.6"
+      - added: "8.1.7"
+      - added: "8.1.8"
+      - added: "8.1.9"
+      - added: "8.1.10"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

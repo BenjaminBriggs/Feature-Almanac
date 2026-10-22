@@ -1,0 +1,6 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/category.json
+id: 2
+name: Reading
+description: Finding and printing what the almanac says.
+owner: ben
+next_feature: 5

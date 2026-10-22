@@ -1,0 +1,96 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "8.5"
+name: Verify workflow
+description: Check behaviours against the code they cite and fix what's wrong.
+owner: ben
+status: shipped
+platforms: [agents]
+next_behaviour: 7
+
+behaviours:
+  - id: "8.5.1"
+    name: Start a verification
+    description: |
+      Checks the whole almanac, or just the features and behaviours the user names.
+      Given the workflows are installed for the user's agent
+      When the user runs the verify workflow, optionally with feature or behaviour IDs such as `1.2`
+      Then the agent checks the behaviours under those IDs against the code
+      And with no IDs it checks every feature
+    source: [packages/cli/assets/agent/workflows/verify.md, packages/cli/src/commands/agent.ts#TOOLS]
+    variants:
+      - platforms: [claude]
+        description: In Claude Code the user types `/almanac-verify`, optionally followed by the IDs.
+        source: [packages/cli/src/commands/agent.ts#TOOLS]
+      - platforms: [copilot]
+        description: In Copilot Chat the user types `/almanac-verify`, optionally followed by the IDs, and the prompt runs in agent mode.
+        source: [packages/cli/src/commands/agent.ts#TOOLS]
+      - platforms: [codex]
+        description: In Codex the user types `$almanac-verify`, or just asks Codex to verify, audit or refresh the almanac against the code, and Codex picks the skill up itself.
+        source: [packages/cli/src/commands/agent.ts#TOOLS]
+
+  - id: "8.5.2"
+    name: Checks each behaviour against its code
+    description: |
+      Reads the code each behaviour cites and sorts the behaviour into one of four results.
+      Given a behaviour in scope with a `source`
+      When the agent verifies it
+      Then it opens every cited path, the variants' included, and treats a missing path or symbol as a mismatch
+      And it checks the description's triggers, timings, limits, platform differences and status against what the code does
+      And it marks the behaviour confirmed, corrected, unsupported (no code does this) or missing (the code does something no behaviour covers)
+    source: [packages/cli/assets/agent/workflows/verify.md]
+
+  - id: "8.5.3"
+    name: Corrects wrong behaviours
+    description: |
+      Fixes the wording, platforms or status of a behaviour that doesn't match the code.
+      Given a behaviour whose description, platforms or status is wrong
+      When the agent finishes checking its feature
+      Then it corrects the behaviour in one patch for that feature, summarised "Verified against code."
+      And a corrected description is a summary line and Given/When/Then, converting a prose behaviour to Gherkin
+    source: [packages/cli/assets/agent/workflows/verify.md]
+
+  - id: "8.5.4"
+    name: Adds what's missing
+    description: |
+      Adds behaviours for things the code does that the almanac doesn't describe.
+      Given the code of a feature in scope does something a user can observe that no behaviour covers
+      When the agent writes that feature's patch
+      Then it adds a behaviour for it in the same patch, as a summary line and Given/When/Then
+    source: [packages/cli/assets/agent/workflows/verify.md]
+
+  - id: "8.5.5"
+    name: Lists unsupported behaviours
+    description: |
+      Leaves behaviours that no code supports for the user to decide on.
+      Given a behaviour no code implements
+      When the agent finishes verifying
+      Then it lists the behaviour for the user
+      But it doesn't remove it, because removal leaves a tombstone and needs a reason
+    source: [packages/cli/assets/agent/workflows/verify.md]
+
+  - id: "8.5.6"
+    name: Ends with a results table
+    description: |
+      Reports the result for every behaviour it checked.
+      When the verification is done
+      Then the agent runs `almanac lint`
+      And it shows a table with each behaviour's ID, name, result and what changed
+    source: [packages/cli/assets/agent/workflows/verify.md]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "8.5.1"
+      - added: "8.5.1@claude"
+      - added: "8.5.1@copilot"
+      - added: "8.5.1@codex"
+      - added: "8.5.2"
+      - added: "8.5.3"
+      - added: "8.5.4"
+      - added: "8.5.5"
+      - added: "8.5.6"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

@@ -1,0 +1,93 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "5.2"
+name: Change check for CI
+description: Fail a build when cited code changed and the almanac didn't.
+owner: ben
+status: shipped
+platforms: [cli]
+next_behaviour: 8
+
+behaviours:
+  - id: "5.2.1"
+    name: Failing a change that skips the almanac
+    description: |
+      Fails when cited code changed and no almanac file did.
+      Given a pull request that changes src/Editor/Bold.swift, which 3 behaviours cite, and no almanac file
+      When CI runs `almanac affected origin/main...HEAD --check`
+      Then the report is printed, and stderr says "The change touches code that 3 behaviours cite but no almanac file. Update the almanac in the same change (almanac agent install adds an update workflow)."
+      And the command exits with code 1
+    source: [packages/cli/src/commands/affected.ts#registerAffectedCommand]
+
+  - id: "5.2.2"
+    name: Passing when the almanac changed too
+    description: |
+      Passes when the change also edits any almanac file.
+      Given a change to cited code that also edits a file in the almanac folder
+      When CI runs `almanac affected origin/main...HEAD --check`
+      Then the command exits with code 0
+      But it doesn't check that the almanac edit has anything to do with the affected behaviours
+    source: [packages/cli/src/commands/affected.ts#registerAffectedCommand, packages/cli/src/commands/change.ts#resolveChange]
+
+  - id: "5.2.3"
+    name: Passing changes nothing cites
+    description: |
+      Passes a change that touches no cited code.
+      Given a change only to files that no live behaviour or feature cites
+      When CI runs `almanac affected origin/main...HEAD --check`
+      Then the command exits with code 0
+      And code that only removed behaviours cite counts as uncited
+    source: [packages/cli/src/commands/affected.ts#registerAffectedCommand, packages/core/src/affected.ts#affectedBy]
+
+  - id: "5.2.4"
+    name: Feature code counts
+    description: |
+      Fails a change covered only by a feature's `code` entry, even though no behaviour cites it.
+      Given feature 1.1 with `code: [src/Other/]`, and a change only to src/Other/x.swift with no almanac file
+      When CI runs `almanac affected origin/main...HEAD --check`
+      Then the command exits with code 1
+      And the note reads "The change touches code that 0 behaviours cite but no almanac file." followed by the same advice
+    source: [packages/cli/src/commands/affected.ts#registerAffectedCommand, packages/core/src/affected.ts#affectedBy]
+
+  - id: "5.2.5"
+    name: JSON result
+    description: |
+      Reports the result as data, with no note on stderr.
+      Given a change that fails the check
+      When CI runs `almanac --json affected origin/main...HEAD --check`
+      Then the envelope has `ok` false and `data.needsUpdate` true
+      And the command exits with code 1
+    source: [packages/cli/src/commands/affected.ts#registerAffectedCommand, packages/cli/src/context.ts#Context.note]
+
+  - id: "5.2.6"
+    name: Without --check
+    description: |
+      Never fails without `--check`.
+      Given a change that would fail the check
+      When the user runs `almanac affected origin/main...HEAD`
+      Then the report is printed and the command exits with code 0
+    source: [packages/cli/src/commands/affected.ts#registerAffectedCommand]
+
+  - id: "5.2.7"
+    name: Not enough history
+    description: |
+      Stops with a usage error when git can't produce the diff, such as in a shallow CI checkout.
+      Given a CI checkout without the history to find where the branch left main
+      When CI runs `almanac affected origin/main...HEAD --check`
+      Then the command stops with exit code 2 and "error: git diff --name-status -M origin/main...HEAD failed:" followed by git's message
+    source: [packages/cli/src/commands/change.ts#git, packages/cli/src/commands/change.ts#changedFiles]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "5.2.1"
+      - added: "5.2.2"
+      - added: "5.2.3"
+      - added: "5.2.4"
+      - added: "5.2.5"
+      - added: "5.2.6"
+      - added: "5.2.7"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

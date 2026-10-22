@@ -1,0 +1,86 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "7.2"
+name: Review state
+description: See each behaviour's review and each feature's progress on the site.
+owner: ben
+status: shipped
+platforms: [web]
+next_behaviour: 7
+
+behaviours:
+  - id: "7.2.1"
+    name: Review tag
+    description: |
+      Every behaviour shows where it stands with reviewers, beside its name.
+      Given a feature's panel is open
+      When the reviewer reads a behaviour
+      Then a tag beside its name reads "Approved", "Rejected", "Changed since review" or "Not reviewed"
+      But removed behaviours have no tag
+    source: [packages/site/src/render.ts#renderBehaviour, packages/site/src/render.ts#REVIEW_LABELS, packages/schema/src/review.ts#reviewState]
+
+  - id: "7.2.2"
+    name: Who decided
+    description: |
+      A line under the steps says who decided, when, and why for a rejection.
+      Given a behaviour has been approved or rejected
+      When the reviewer reads it in its feature's panel
+      Then a line under its steps reads, for example, "Approved by Sam Price, 20 Oct 2026"
+      And for a rejection the line ends with the reviewer's reason, as "Rejected by Sam Price, 20 Oct 2026: It should save on every change."
+    source: [packages/site/src/render.ts#renderReview]
+
+  - id: "7.2.3"
+    name: Review lapses when the text changes
+    description: |
+      Editing what a behaviour says sends it back for review.
+      Given Sam Price approved a behaviour on 20 Oct 2026
+      When its name, description or a variant is changed and the site is rebuilt
+      Then its tag reads "Changed since review" and the line under its steps reads "Changed since Sam Price approved it on 20 Oct 2026"
+      And it counts as changed, not approved, in every review bar, and comes back into review mode's list
+      But changing its status, platforms or source citations keeps the review current
+    source: [packages/core/src/review.ts#reviewHash, packages/core/src/compile.ts#processBehaviour, packages/site/src/render.ts#renderReview]
+
+  - id: "7.2.4"
+    name: Review bar on feature cards
+    description: |
+      Each feature card shows how far review has got.
+      Given a feature has at least 1 behaviour that isn't removed
+      When the reviewer looks at its card
+      Then the card shows a bar split into approved, rejected, changed-since-review and not-reviewed segments, each as wide as its share
+      And a label such as "3 of 8 approved · 1 rejected · 2 changed", where the rejected and changed counts appear only when above 0
+      But a feature with no behaviours shows no bar
+    source: [packages/site/src/render.ts#renderCard, packages/site/src/render.ts#reviewBar, packages/site/src/render.ts#tally]
+
+  - id: "7.2.5"
+    name: Review counts in the feature panel
+    description: |
+      A feature's panel counts its behaviours in each review state.
+      Given a feature has at least 1 behaviour that isn't removed
+      When the reviewer opens the feature's panel
+      Then beside the description the same bar shows, with a count of each state, such as "3 approved", "1 rejected", "2 changed since review" and "2 not reviewed"
+      But states with 0 behaviours are left out of the counts
+    source: [packages/site/src/render.ts#renderPanel, packages/site/src/render.ts#reviewLegend]
+
+  - id: "7.2.6"
+    name: Review totals in the hero
+    description: |
+      The top of the page shows review progress across the whole almanac.
+      Given the almanac has at least 1 behaviour that isn't removed
+      When the reviewer opens the site
+      Then the hero reads, for example, "Product review · 41 of 120 approved", with a bar and a count of each review state
+      But removed behaviours, and behaviours of removed features, are not counted
+    source: [packages/site/src/render.ts#renderSite, packages/site/src/render.ts#tally, packages/site/src/render.ts#reviewLegend]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "7.2.1"
+      - added: "7.2.2"
+      - added: "7.2.3"
+      - added: "7.2.4"
+      - added: "7.2.5"
+      - added: "7.2.6"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

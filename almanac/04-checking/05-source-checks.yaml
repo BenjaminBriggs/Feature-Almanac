@@ -1,0 +1,91 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "4.5"
+name: Source checks
+description: Warn when a behaviour or feature cites a file or folder that isn't there.
+owner: ben
+status: shipped
+platforms: [cli]
+next_behaviour: 7
+
+behaviours:
+  - id: "4.5.1"
+    name: Missing cited file
+    description: |
+      Warns when a behaviour cites a file that isn't under the code path.
+      Given behaviour 1.1.2 citing `src/Editor/Gone.swift#save`, with no such file under `code.path`
+      When the user runs `almanac lint`
+      Then lint warns ALM-W013, "src/Editor/Gone.swift#save not found under code path .."
+      And variants' `source` entries and features' `code` entries are checked the same way
+      But the symbol after the "#" isn't checked: a file that exists passes whatever symbol it names
+    source: [packages/core/src/compile.ts#Compiler.checkCodePath, packages/core/src/compile.ts#Compiler.processBehaviour, packages/core/src/compile.ts#Compiler.processFeature]
+
+  - id: "4.5.2"
+    name: Folders and globs
+    description: |
+      Checks that a cited folder exists, or the folder in front of a glob, rather than any one file.
+      Given a behaviour citing `src/Editor/` and `src/Gone/**/*.swift`
+      When the user runs `almanac lint`
+      Then `src/Editor/` passes as long as that folder exists
+      And `src/Gone/**/*.swift` gets ALM-W013 because `src/Gone/` doesn't exist
+      But a glob whose folder exists passes even when no file matches it
+    source: [packages/core/src/compile.ts#Compiler.checkCodePath]
+
+  - id: "4.5.3"
+    name: No code to check against
+    description: |
+      Skips the check when the code isn't there.
+      Given an almanac.yaml with no `code` section, or a `code.path` that points at a missing folder
+      When the user runs `almanac lint`
+      Then no `source` or `code` entry gets ALM-W013
+    source: [packages/core/src/compile.ts#Compiler.locateRoots, packages/core/src/compile.ts#Compiler.checkCodePath]
+
+  - id: "4.5.4"
+    name: Behaviours without a source
+    description: |
+      Warns about live behaviours that cite no code, when asked to.
+      Given behaviour 1.1.4 with no `source`
+      When the user runs `almanac lint --require-source`
+      Then lint warns ALM-W011, "Behaviour 1.1.4 has no source"
+      And plain `almanac lint` doesn't mention it, unless `lint.require_source` in almanac.yaml is `warn` or `error`
+      And a behaviour removed on every platform is never reported
+    source: [packages/core/src/compile.ts#Compiler.requireSourceLevel, packages/core/src/compile.ts#Compiler.processBehaviour, packages/cli/src/commands/check.ts#registerCheckCommands]
+
+  - id: "4.5.5"
+    name: Missing assets
+    description: |
+      Warns when a feature lists an asset file that isn't in the almanac folder.
+      Given feature 1.1 with `assets: [designs/editor.png]` and no such file beside almanac.yaml
+      When the user runs `almanac lint`
+      Then lint warns ALM-W013, "Asset designs/editor.png not found"
+      And assets are looked for in the almanac folder, whether or not the code is there
+    source: [packages/core/src/compile.ts#Compiler.processFeature]
+
+  - id: "4.5.6"
+    name: Removed entries checked too
+    description: |
+      Checks the code that removed behaviours, variants and features cite, as well as live ones.
+      Given behaviour 1.1.5, removed on every platform, citing `src/Old/Thing.swift`, which has since been deleted
+      When the user runs `almanac lint`
+      Then lint warns ALM-W013, "src/Old/Thing.swift not found under code path .."
+      And removed variants' `source` entries and removed features' `code` entries are checked the same way
+      But `almanac relink` leaves removed entries as they are, so the warning stays until the entry is changed with `almanac set`
+    source: [packages/core/src/compile.ts#Compiler.checkCodePath, packages/core/src/compile.ts#Compiler.processBehaviour, packages/core/src/compile.ts#Compiler.processFeature, packages/core/src/relink.ts#planRelink]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - feature: modified
+      - added: "4.5.6"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "4.5.1"
+      - added: "4.5.2"
+      - added: "4.5.3"
+      - added: "4.5.4"
+      - added: "4.5.5"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

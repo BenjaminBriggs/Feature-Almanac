@@ -1,0 +1,6 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/category.json
+id: 1
+name: Command line basics
+description: Creating an almanac, finding it, and how every command reports back.
+owner: ben
+next_feature: 5

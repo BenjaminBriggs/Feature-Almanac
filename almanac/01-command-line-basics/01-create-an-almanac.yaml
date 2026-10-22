@@ -1,0 +1,116 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "1.1"
+name: Create an almanac
+description: Start a new almanac with its product, prefix and platforms.
+owner: ben
+status: shipped
+platforms: [cli]
+next_behaviour: 9
+
+behaviours:
+  - id: "1.1.1"
+    name: Create the almanac
+    description: |
+      Creates almanac/almanac.yaml with the product, prefix and platforms the user gives.
+      Given a repository with no almanac
+      When the user runs `almanac init --product "Example Notes" --prefix EX --platforms ios,android` in the repository's root folder
+      Then `almanac/almanac.yaml` is created with the product name "Example Notes", the prefix `EX` and the platforms `ios` and `android`
+      And the first category added afterwards gets ID 1
+      And the command prints "Created almanac/almanac.yaml, .gitignore"
+      And it suggests the next step: "Next: almanac add category --name <name> --description <text>"
+    source: [packages/cli/src/commands/write.ts#registerWriteCommands, packages/core/src/mutations.ts#planInit]
+
+  - id: "1.1.2"
+    name: Platform names
+    description: |
+      Gives each platform a display name, with the usual spelling for well-known platforms.
+      Given the user is creating an almanac
+      When the user runs `almanac init --platforms ios,macos,web-app`
+      Then `ios` is named "iOS" and `macos` is named "macOS"
+      And the other well-known tags `ipados`, `watchos`, `tvos`, `visionos`, `android`, `web`, `windows` and `linux` get their usual names too
+      And any other tag is named by capitalising it, so `web-app` becomes "Web-app"
+    source: [packages/core/src/mutations.ts#KNOWN_PLATFORM_NAMES, packages/core/src/mutations.ts#planInit]
+
+  - id: "1.1.3"
+    name: Ignore the build output
+    description: |
+      Adds /dist/ to .gitignore so built files stay out of git.
+      Given the repository's `.gitignore` doesn't already ignore `dist`
+      When the user runs `almanac init`
+      Then the line `/dist/` is added to the `.gitignore` in the folder that holds `almanac/`, creating the file if there is none
+      And for an almanac made with `--standalone`, or with `--root` naming a folder that isn't called `almanac`, it is the `.gitignore` in the almanac's own folder
+      But a `.gitignore` that already has a `dist`, `dist/`, `/dist` or `/dist/` line is left as it is
+    source: [packages/core/src/mutations.ts#planInit]
+
+  - id: "1.1.4"
+    name: Default product name and prefix
+    description: |
+      Names the product after the folder when no name is given, and has no prefix when none is given.
+      Given the user is in a folder named `notes-app`
+      When the user runs `almanac init --platforms ios` without `--product` or `--prefix`
+      Then the product is named "notes-app"
+      And the almanac has no prefix, so its IDs are cited without one
+    source: [packages/cli/src/commands/write.ts#registerWriteCommands, packages/core/src/mutations.ts#planInit]
+
+  - id: "1.1.5"
+    name: Standalone or chosen folder
+    description: |
+      Creates the almanac in the current folder, or a chosen one, instead of in almanac/.
+      Given the user is in the folder that should hold the almanac
+      When the user runs `almanac init --standalone --platforms web`
+      Then `almanac.yaml` is created in the current folder rather than in `almanac/`
+      And `almanac --root <path> init` creates it in `<path>` instead
+      And the `ALMANAC_ROOT` environment variable has no effect on `init`
+    source: [packages/cli/src/commands/write.ts#registerWriteCommands]
+
+  - id: "1.1.6"
+    name: Platforms are required
+    description: |
+      Refuses to create an almanac without at least one platform.
+      Given the user is creating an almanac
+      When the user runs `almanac init` without `--platforms`
+      Then it fails with "At least one platform is required (--platforms ios,android)" and exit code 2
+      And nothing is written
+    source: [packages/core/src/mutations.ts#planInit]
+
+  - id: "1.1.7"
+    name: Prefix and platform tag rules
+    description: |
+      Rejects a prefix or platform tag in the wrong form.
+      Given the user is creating an almanac
+      When the user runs `almanac init --prefix ex --platforms ios`
+      Then it fails with "Prefix "ex" must match ^[A-Z][A-Z0-9]{0,9}$" and exit code 2, because a prefix is 1 to 10 capital letters or digits starting with a letter
+      And a platform tag that isn't lower-case letters, digits and hyphens starting with a letter, such as `iOS`, fails the same way with "Platform tag "iOS" must match ^[a-z][a-z0-9-]*$"
+      And nothing is written
+    source: [packages/core/src/mutations.ts#planInit, packages/schema/src/refs.ts#PREFIX_RE, packages/schema/src/refs.ts#PLATFORM_TAG_RE]
+
+  - id: "1.1.8"
+    name: Never overwrites an almanac
+    description: |
+      Refuses to replace an almanac that already exists.
+      Given the folder already has `almanac/almanac.yaml`
+      When the user runs `almanac init` again
+      Then it fails with "<folder>/almanac/almanac.yaml already exists" and exit code 4
+      And the existing almanac is unchanged
+    source: [packages/core/src/mutations.ts#planInit]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "1.1.3"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "1.1.1"
+      - added: "1.1.2"
+      - added: "1.1.3"
+      - added: "1.1.4"
+      - added: "1.1.5"
+      - added: "1.1.6"
+      - added: "1.1.7"
+      - added: "1.1.8"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

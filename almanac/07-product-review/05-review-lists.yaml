@@ -1,0 +1,104 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "7.5"
+name: Review lists
+description: List behaviours by review state from the command line.
+owner: ben
+status: shipped
+platforms: [cli]
+next_behaviour: 9
+
+behaviours:
+  - id: "7.5.1"
+    name: List behaviours by review
+    description: |
+      Lists the behaviours in one review state, with who decided, when and why.
+      Given behaviours have been reviewed
+      When the user runs `almanac list --review rejected`
+      Then each rejected behaviour is listed in ID order with its ID, name and review, such as "rejected by Sam Price on 2026-10-20: It should save on every change."
+      And `--review approved` lists approvals as "approved by Sam Price on 2026-10-20", `--review unreviewed` lists behaviours marked "not reviewed", and `--review changed` lists behaviours as "changed since approved by Sam Price on 2026-10-20"
+      But a behaviour whose text changed since its review is listed only under changed, whatever the verdict was
+    source: [packages/cli/src/commands/read.ts#reviewLine, packages/core/src/query.ts#listEntities, packages/schema/src/review.ts#matchesReview]
+
+  - id: "7.5.2"
+    name: Behaviours that need review
+    description: |
+      Lists everything still waiting for a reviewer.
+      Given some behaviours were never reviewed and others changed after their review
+      When the user runs `almanac list --review needed`
+      Then both kinds are listed together in ID order, as "not reviewed" or "changed since …"
+      And these are the behaviours the website's review mode offers by default
+    source: [packages/schema/src/review.ts#matchesReview, packages/cli/src/commands/read.ts#reviewLine]
+
+  - id: "7.5.3"
+    name: Narrow a review list
+    description: |
+      Combines the review filter with the other list filters.
+      Given an almanac with several categories
+      When the user runs `almanac list --review needed --category 7`
+      Then only that category's behaviours needing review are listed
+      And `--feature`, `--platform`, `--status`, `--owner` and `--tag` narrow the list the same way
+      But removed behaviours are left out unless the user adds `--include-removed`
+    source: [packages/core/src/query.ts#listEntities]
+
+  - id: "7.5.4"
+    name: Review lists are behaviours only
+    description: |
+      Refuses a review list of features or categories.
+      Given the user wants a review list
+      When the user runs `almanac list --review rejected --level feature`
+      Then the command fails with "--review lists behaviours; leave out --level or use --level behaviour" and exit code 2
+    source: [packages/core/src/query.ts#listEntities]
+
+  - id: "7.5.5"
+    name: Unknown review state
+    description: |
+      Refuses a review state it doesn't know and lists the ones it does.
+      When the user runs `almanac list --review pending`
+      Then the command fails with exit code 2, saying "Allowed choices are unreviewed, changed, approved, rejected, needed."
+    source: [packages/cli/src/commands/read.ts#registerReadCommands, packages/schema/src/review.ts#REVIEW_FILTERS]
+
+  - id: "7.5.6"
+    name: Nothing to list
+    description: |
+      Says so when no behaviour is in the requested state.
+      Given no behaviour has been approved
+      When the user runs `almanac list --review approved`
+      Then the command prints "Nothing matches." to standard error and exits with code 0
+    source: [packages/cli/src/commands/read.ts#registerReadCommands]
+
+  - id: "7.5.7"
+    name: Review lists as JSON
+    description: |
+      Gives each listed behaviour's full review for scripts and agents.
+      When the user runs `almanac list --review rejected --json`
+      Then each listed behaviour comes with its feature's ID and its review: the verdict, who, the date, the reason and the fingerprint
+      And `stale` is true when the text has changed since the review
+    source: [packages/cli/src/commands/read.ts#summary, packages/core/src/query.ts#listEntities]
+
+  - id: "7.5.8"
+    name: Review in show
+    description: |
+      Prints a behaviour's review with the rest of its details.
+      Given Sam Price rejected FA-1.2.3 on 2026-10-20
+      When the user runs `almanac show FA-1.2.3`
+      Then the details include "Review: rejected by Sam Price on 2026-10-20" followed by the reason in brackets
+      And when the text has changed since, the line ends "; changed since, needs reviewing again"
+      And `almanac show` of a feature prints the same line under each of its reviewed behaviours
+    source: [packages/core/src/render.ts#behaviourBody, packages/cli/src/commands/read.ts#registerReadCommands]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "7.5.1"
+      - added: "7.5.2"
+      - added: "7.5.3"
+      - added: "7.5.4"
+      - added: "7.5.5"
+      - added: "7.5.6"
+      - added: "7.5.7"
+      - added: "7.5.8"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

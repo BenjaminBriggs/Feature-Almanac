@@ -1,0 +1,73 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "6.8"
+name: Deep links
+description: Links that open a feature or a behaviour directly.
+owner: ben
+status: shipped
+platforms: [web]
+next_behaviour: 6
+
+behaviours:
+  - id: "6.8.1"
+    name: Link to a feature
+    description: |
+      Opens a feature's panel from the page's address.
+      When the user opens the site at an address ending "#6.8" or "#FA-6.8"
+      Then the page loads with that feature's panel already open, without the unfold animation
+    source: [packages/site/assets/site.js#route, packages/site/assets/site.js#panelTarget]
+
+  - id: "6.8.2"
+    name: Link to a behaviour
+    description: |
+      Opens the panel at a behaviour from the page's address.
+      When the user opens an address ending "#6.8.2", "#FA-6.8.2" or "#6.8.2@web", with the prefix in any case
+      Then that feature's panel opens scrolled to the behaviour, which flashes lime for 1.8 seconds
+      And a removed behaviour's collapsed section opens to show it
+      But when the system asks for reduced motion it doesn't flash
+    source: [packages/site/assets/site.js#route, packages/site/assets/site.js#normaliseId, packages/site/assets/site.css]
+
+  - id: "6.8.3"
+    name: Link from an ID
+    description: |
+      Puts a behaviour's link in the address when its reference is clicked.
+      Given a feature's panel is open
+      When the user clicks a behaviour's reference, such as "FA-6.8.2"
+      Then the address ends with "#6.8.2", ready to copy and share, and the behaviour scrolls to the top of the panel and flashes
+    source: [packages/site/src/render.ts#renderBehaviour, packages/site/assets/site.js#navigate]
+
+  - id: "6.8.4"
+    name: Back and Forward
+    description: |
+      Makes opening and closing panels part of the browser's history.
+      Given the user has opened a feature's panel from a card or a link
+      When they press the browser's Back button
+      Then the panel closes
+      And Forward opens it again
+      And after a panel is closed with "Close", Escape or a click outside it, Back opens it again, because closing adds a history entry
+    source: [packages/site/assets/site.js#navigate, packages/site/assets/site.js#close, packages/site/assets/site.js#route]
+
+  - id: "6.8.5"
+    name: Unknown IDs
+    description: |
+      Ignores an address that names nothing on the page.
+      When the user opens an address whose fragment isn't a feature or behaviour on the page, such as a category's ID "#6", an ID that doesn't exist, or one with another product's prefix
+      Then no panel opens
+    source: [packages/site/assets/site.js#panelTarget, packages/site/assets/site.js#normaliseId]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "6.8.4"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "6.8.1"
+      - added: "6.8.2"
+      - added: "6.8.3"
+      - added: "6.8.4"
+      - added: "6.8.5"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

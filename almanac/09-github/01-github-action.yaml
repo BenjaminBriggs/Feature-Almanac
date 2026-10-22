@@ -1,0 +1,95 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "9.1"
+name: GitHub Action
+description: Build the site, or just install the CLI, in a workflow.
+owner: ben
+status: shipped
+platforms: [actions]
+next_behaviour: 8
+
+behaviours:
+  - id: "9.1.1"
+    name: Builds the almanac website
+    description: |
+      Builds the website from the almanac in the repository the workflow checked out.
+      Given a workflow job that has checked out a repository with an almanac in `almanac/`
+      When a step runs `uses: BenjaminBriggs/Feature-Almanac@main` with no inputs
+      Then the website is written to `_site/` in the workspace as `index.html` and `almanac.json`
+      And the step's log shows the almanac's lint diagnostics and "Wrote _site/index.html (<n> errors, <n> warnings)"
+      But the site is not uploaded or deployed: later steps do that
+    source: [action.yml, packages/cli/src/commands/site.ts#registerSiteCommands]
+
+  - id: "9.1.2"
+    name: Errors in the almanac fail the step
+    description: |
+      Fails the build step when the almanac has lint errors.
+      Given the almanac has at least one lint error
+      When the action builds the site
+      Then the step fails, and the job stops there unless later steps are set to run anyway
+      And the site files are still written, unless `almanac.yaml` itself is missing or invalid
+      But two features or two behaviours that share an ID stop the build with "internal error: Error: MiniSearch: duplicate ID …" before any site file is written
+      And warnings alone don't fail it
+    source: [action.yml, packages/cli/src/commands/site.ts#registerSiteCommands, packages/site/src/search.ts#buildSearchIndex]
+
+  - id: "9.1.3"
+    name: almanac on PATH for later steps
+    description: |
+      Leaves the `almanac` command available to the rest of the job.
+      When the action has run
+      Then later steps in the same job can run `almanac`, for example `almanac affected --check` or `almanac lint`
+    source: [action.yml]
+
+  - id: "9.1.4"
+    name: Install the CLI without building the site
+    description: |
+      Only installs the CLI when the site isn't wanted.
+      When the step sets `site: "false"`
+      Then `almanac` is installed on PATH for later steps
+      But no website is built and nothing is written to the workspace
+    source: [action.yml]
+
+  - id: "9.1.5"
+    name: Choose the almanac and output folders
+    description: |
+      Builds from a different almanac folder, or into a different output folder.
+      When the step sets `root`, `out` or both, as paths relative to the workspace
+      Then the site is built from the almanac in `root` (default `almanac`) and written to `out` (default `_site`)
+    source: [action.yml]
+
+  - id: "9.1.6"
+    name: Choose the Node.js version
+    description: |
+      Sets the Node.js version for the tool and for the rest of the job.
+      When the step sets `node-version`, such as `"20"`
+      Then the tool is built and run with that version of Node.js, `22` by default
+      And later steps in the job get that version too
+    source: [action.yml]
+
+  - id: "9.1.7"
+    name: Leaves the workspace clean
+    description: |
+      Installing the CLI adds no files to the checked-out repository.
+      Given the action has installed `almanac`
+      When a later step runs `almanac affected`
+      Then the installed command doesn't show up as an untracked or changed file, because it lives outside the workspace
+    source: [action.yml]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "9.1.2"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "9.1.1"
+      - added: "9.1.2"
+      - added: "9.1.3"
+      - added: "9.1.4"
+      - added: "9.1.5"
+      - added: "9.1.6"
+      - added: "9.1.7"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

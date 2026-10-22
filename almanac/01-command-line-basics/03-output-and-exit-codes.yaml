@@ -1,0 +1,167 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "1.3"
+name: Output and exit codes
+description: Readable output for people, JSON for agents and scripts, and exit codes that say what went wrong.
+owner: ben
+status: shipped
+platforms: [cli]
+next_behaviour: 14
+
+behaviours:
+  - id: "1.3.1"
+    name: Results on stdout, notes on stderr
+    description: |
+      Prints results on stdout and notes and errors on stderr, so piped output holds only the result.
+      Given behaviour 1.2.1 has moved and is now 2.1.1
+      When the user runs `almanac show 1.2.1 > out.md`
+      Then `out.md` holds behaviour 2.1.1
+      And the note "note: 1.2.1 is now 2.1.1" still appears in the terminal
+      And errors are printed the same way, as "error: <message>"
+    source: [packages/cli/src/context.ts#Context, packages/cli/src/io.ts#nodeIo]
+
+  - id: "1.3.2"
+    name: JSON envelope
+    description: |
+      Gives agents and scripts one JSON object per command.
+      Given an almanac
+      When the user adds `--json`, as in `almanac --json show 1.2`
+      Then stdout holds one JSON object with the keys `almanac` (always 1), `command`, `ok`, `data`, `diagnostics` and `redirects`
+      And the human-readable text and notes are left out
+    source: [packages/cli/src/context.ts#Context]
+
+  - id: "1.3.3"
+    name: Failures in JSON
+    description: |
+      Reports a failed command in the same JSON envelope.
+      Given the user is using `--json`
+      When the command fails, as `almanac --json show 9.9` does
+      Then the object has `"ok": false`, the message in `data.error`, and any lint problems behind it in `diagnostics`
+      And the exit code is the same as without `--json`
+      And a mistake in the command line itself, such as an unknown command or option or a missing argument, is printed as plain "error: …" text on stderr, with no JSON
+    source: [packages/cli/src/context.ts#Context, packages/cli/src/program.ts#run]
+
+  - id: "1.3.4"
+    name: Usage mistakes exit with 2
+    description: |
+      Exits with 2 when the command line is wrong.
+      Given an almanac
+      When the user runs a command with a mistake in it, such as `almanac bogus`, `almanac list --bogus`, `almanac show` with no reference, `almanac show foo` or `almanac list --level nope`
+      Then it prints the reason, such as "error: unknown command 'bogus'" or "error: "foo" is not a valid reference"
+      And the exit code is 2, the same as when no almanac is found
+    source: [packages/cli/src/program.ts#run, packages/cli/src/context.ts#EXIT]
+
+  - id: "1.3.5"
+    name: Missing IDs exit with 3
+    description: |
+      Exits with 3 when an ID or reference doesn't exist.
+      Given the almanac has no feature 9.9
+      When the user runs `almanac show 9.9`
+      Then it fails with "error: Feature 9.9 not found" and exit code 3
+      And a reference with another product's prefix fails the same way, as in "XX-1 belongs to another product (prefix XX)"
+    source: [packages/core/src/query.ts#lookup, packages/cli/src/context.ts#EXIT]
+
+  - id: "1.3.6"
+    name: Conflicts exit with 4
+    description: |
+      Exits with 4 when a write can't be made in the current state.
+      Given a write that conflicts with what is on disk, such as `almanac init` where an almanac already exists, or a file that changed between being read and being written
+      When the command runs
+      Then it fails with the reason, such as "<path> changed since it was read", and exit code 4
+      And nothing is written
+    source: [packages/core/src/changes.ts#applyChanges, packages/cli/src/context.ts#EXIT]
+
+  - id: "1.3.7"
+    name: Lint problems exit with 1
+    description: |
+      Exits with 1 when lint errors stop the command.
+      Given an almanac
+      When `almanac lint` finds errors, or a write would add new ones
+      Then each problem is listed as "<file>:<line>  error  <code>  <message>"
+      And a refused write ends with a line such as "error: This patch would introduce lint errors; nothing was written"
+      And the exit code is 1
+    source: [packages/cli/src/commands/check.ts#registerCheckCommands, packages/core/src/transaction.ts#commitChanges, packages/cli/src/context.ts#EXIT]
+
+  - id: "1.3.8"
+    name: Internal errors exit with 5
+    description: |
+      Exits with 5 on a failure the tool doesn't expect.
+      Given something goes wrong that the tool has no specific error for
+      When the command runs
+      Then it prints "error: internal error: " followed by the details and the stack trace
+      And the exit code is 5
+    source: [packages/cli/src/context.ts#Context, packages/cli/src/context.ts#EXIT]
+
+  - id: "1.3.9"
+    name: Quiet mode
+    description: |
+      Hides notes and warnings, but still prints the result and errors.
+      Given an almanac with lint warnings
+      When the user runs `almanac -q build` (or `--quiet`)
+      Then only the result line, such as "Wrote dist/almanac.json: …", and any errors are printed
+      And warnings and notes such as "note: 1.2.1 is now 2.1.1" or "Nothing matches." are hidden
+    source: [packages/cli/src/context.ts#Context]
+
+  - id: "1.3.10"
+    name: Colour
+    description: |
+      Colours errors and warnings in a terminal, and prints plain text everywhere else.
+      Given the output is a terminal
+      When a command prints lint problems or an error
+      Then "error" is red, "warn" is yellow and file locations are dim
+      And the text is plain with `--no-color`, with the `NO_COLOR` environment variable set, with `--json`, or when the output isn't a terminal
+    source: [packages/cli/src/context.ts#Context]
+
+  - id: "1.3.11"
+    name: Version and help
+    description: |
+      Prints the version or help and exits with 0.
+      Given the CLI is installed
+      When the user runs `almanac --version`
+      Then it prints `0.1.0` and exits with 0
+      And `almanac --help`, or `--help` after any command, lists the commands and options and exits with 0
+    source: [packages/cli/src/program.ts#run]
+
+  - id: "1.3.12"
+    name: Global options in any position
+    description: |
+      Accepts the global options before or after the command name.
+      Given an almanac
+      When the user runs `almanac show 1.2 --json` instead of `almanac --json show 1.2`
+      Then the result is the same
+      And the same holds for `--root`, `--dry-run`, `-q` and `--no-color`
+    source: [packages/cli/src/program.ts#run]
+
+  - id: "1.3.13"
+    name: No command
+    description: |
+      Prints the help and fails when no command is given.
+      Given the CLI is installed
+      When the user runs `almanac` on its own, with no command
+      Then the list of commands and options is printed on stderr
+      And the exit code is 2
+    source: [packages/cli/src/program.ts#run]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - added: "1.3.13"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "1.3.1"
+      - added: "1.3.2"
+      - added: "1.3.3"
+      - added: "1.3.4"
+      - added: "1.3.5"
+      - added: "1.3.6"
+      - added: "1.3.7"
+      - added: "1.3.8"
+      - added: "1.3.9"
+      - added: "1.3.10"
+      - added: "1.3.11"
+      - added: "1.3.12"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

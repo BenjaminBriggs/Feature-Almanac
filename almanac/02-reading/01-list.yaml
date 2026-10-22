@@ -1,0 +1,140 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "2.1"
+name: List
+description: List categories, features or behaviours, filtered by status, platform, owner, tag or review.
+owner: ben
+status: shipped
+platforms: [cli]
+next_behaviour: 11
+
+behaviours:
+  - id: "2.1.1"
+    name: List features
+    description: |
+      Lists every feature with its ID, name and status.
+      Given an almanac with features
+      When the user runs `almanac list`
+      Then each feature is printed on one line as its ID, name and status, in ID order
+      And a status that differs by platform reads like "shipped (iOS) · planned (Android)"
+    source: [packages/cli/src/commands/read.ts#registerReadCommands, packages/core/src/query.ts#listEntities, packages/core/src/render.ts#statusLabel]
+
+  - id: "2.1.2"
+    name: Choose the level
+    description: |
+      Lists categories or behaviours instead of features.
+      Given an almanac
+      When the user runs `almanac list --level category` or `almanac list --level behaviour`
+      Then it lists the categories, each "active" or "removed", or every behaviour of every feature
+      And `--level` takes only `category`, `feature` or `behaviour`; anything else fails with exit code 2
+      And with `--level category`, the `--feature`, `--platform` and `--tag` filters have no effect
+    source: [packages/cli/src/commands/read.ts#registerReadCommands, packages/core/src/query.ts#listEntities]
+
+  - id: "2.1.3"
+    name: One category or feature
+    description: |
+      Narrows the list to one category, or to one feature's behaviours.
+      Given an almanac
+      When the user runs `almanac list --feature 1.2`
+      Then the behaviours of feature 1.2 are listed, without needing `--level behaviour`
+      And `--category 2` keeps only what is in category 2
+      And both take plain IDs, so `--feature EX-1.2`, or a feature's former ID, matches nothing
+    source: [packages/core/src/query.ts#listEntities]
+
+  - id: "2.1.4"
+    name: Filter by platform
+    description: |
+      Keeps only what is available on one platform, with its status there.
+      Given an almanac for iOS and Android
+      When the user runs `almanac list --platform android`
+      Then only entities available on Android are listed, each with its Android status alone
+      And an unknown platform fails with "Unknown platform "mac"; known: ios, android" and exit code 2
+    source: [packages/cli/src/commands/read.ts#registerReadCommands, packages/cli/src/commands/read.ts#checkPlatform, packages/core/src/query.ts#listEntities]
+
+  - id: "2.1.5"
+    name: Filter by status
+    description: |
+      Keeps only entities that have a given status on any of their platforms.
+      Given feature 1.2 is shipped on iOS and planned on Android
+      When the user runs `almanac list --status planned`
+      Then 1.2 is listed, because it is planned on one of its platforms
+      And with `--platform android` as well, only entities planned on Android are listed
+    source: [packages/core/src/query.ts#listEntities]
+
+  - id: "2.1.6"
+    name: Filter by owner or tag
+    description: |
+      Keeps only entities with a given owner or tag.
+      Given features owned by different people
+      When the user runs `almanac list --owner amy`
+      Then only the features amy owns are listed
+      And with `--level behaviour`, a behaviour counts as owned by its feature's owner
+      And `--tag core` keeps only the features, or behaviours, tagged `core`
+    source: [packages/core/src/query.ts#listEntities]
+
+  - id: "2.1.7"
+    name: Removed entities hidden
+    description: |
+      Leaves out removed entities unless asked for them.
+      Given behaviour 1.1.3 has been removed
+      When the user runs `almanac list --feature 1.1`
+      Then 1.1.3 isn't listed
+      And with `--include-removed` it is listed with the status "removed"
+      And an entity removed on every platform listed, or on the one `--platform` names, is left out the same way, so `--status removed` finds it only with `--include-removed`
+    source: [packages/core/src/query.ts#listEntities]
+
+  - id: "2.1.8"
+    name: Filter by review
+    description: |
+      Lists behaviours by where they stand with reviewers, with who decided and when.
+      Given behaviours that reviewers have approved or rejected
+      When the user runs `almanac list --review rejected`
+      Then each rejected behaviour is listed with the verdict and its note, such as "rejected by amy on 2026-10-21: Should count the selection."
+      And `--review` takes `unreviewed`, `changed`, `approved`, `rejected` or `needed`, where `needed` means never reviewed or changed since
+      And other rows read like "approved by amy on 2026-10-20", "changed since approved by amy on 2026-10-21" or "not reviewed"
+      And `--review` with `--level feature` or `--level category` fails with "--review lists behaviours; leave out --level or use --level behaviour" and exit code 2
+    source: [packages/cli/src/commands/read.ts#registerReadCommands, packages/cli/src/commands/read.ts#reviewLine, packages/schema/src/review.ts#matchesReview]
+
+  - id: "2.1.9"
+    name: Nothing matches
+    description: |
+      Says so when nothing matches the filters.
+      Given an almanac
+      When the user runs a listing that matches nothing, such as `almanac list --category 9`
+      Then it prints "Nothing matches." on stderr
+      And the exit code is 0
+    source: [packages/cli/src/commands/read.ts#registerReadCommands]
+
+  - id: "2.1.10"
+    name: List as JSON
+    description: |
+      Gives the listing as JSON entries without their nested children.
+      Given an almanac
+      When the user runs `almanac --json list`
+      Then `data` is an array with one object per entity, each with a `level` of "category", "feature" or "behaviour"
+      And a category has a `featureCount` instead of its features, a feature has its `category` and a `behaviourCount` instead of its behaviours and changelog, and a behaviour has its `feature`
+      But a behaviour keeps its `variants`
+    source: [packages/cli/src/commands/read.ts#summary]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "2.1.7"
+      - modified: "2.1.10"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "2.1.1"
+      - added: "2.1.2"
+      - added: "2.1.3"
+      - added: "2.1.4"
+      - added: "2.1.5"
+      - added: "2.1.6"
+      - added: "2.1.7"
+      - added: "2.1.8"
+      - added: "2.1.9"
+      - added: "2.1.10"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

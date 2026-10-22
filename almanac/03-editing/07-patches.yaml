@@ -1,0 +1,137 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "3.7"
+name: Patches
+description: Apply a batch of operations at once, atomically, rejecting any that would break the almanac.
+owner: ben
+status: shipped
+platforms: [cli]
+next_behaviour: 10
+
+behaviours:
+  - id: "3.7.1"
+    name: Apply a patch
+    description: |
+      Runs a batch of operations from a JSON file or standard input, in order.
+      Given `patch.json` holds `{"almanac": 1, "ops": […]}` with add, set, describe, rename, remove and move operations
+      When the user runs `almanac apply patch.json`
+      Then the operations run in order, each against the almanac as the earlier ones left it
+      And it prints a line such as "Added behaviour 1.1.4 ($bold)" for each entity added, then "Wrote 2 files"
+      And `almanac apply -` reads the patch from standard input instead
+    source: [packages/cli/src/commands/apply.ts#registerApplyCommand, packages/core/src/patch.ts#planPatch]
+
+  - id: "3.7.2"
+    name: Names for new entities
+    description: |
+      Lets later operations refer to an entity an earlier one added, whatever ID it got.
+      Given an `add` operation with `"as": "$editor"`
+      When a later operation gives `"parent": "$editor"` or `"ref": "$editor"`
+      Then it acts on the entity the first operation added
+      And a name no earlier operation defined stops the patch with "error: ops[2]: $editor is not defined by an earlier op" and exit 2
+      And defining a name twice stops it with "error: ops[1]: $editor is already defined" and exit 2
+    source: [packages/core/src/patch.ts#planPatch]
+
+  - id: "3.7.3"
+    name: All or nothing
+    description: |
+      Writes nothing when any operation fails.
+      Given a patch whose first operation adds a behaviour and whose second sets a field on 9.9.9, which doesn't exist
+      When the user runs `almanac apply patch.json`
+      Then it stops with "error: Behaviour 9.9.9 not found" and exits 3
+      And the behaviour from the first operation isn't written either
+    source: [packages/core/src/patch.ts#planPatch, packages/cli/src/commands/apply.ts#registerApplyCommand]
+
+  - id: "3.7.4"
+    name: Patches that break the rules are refused
+    description: |
+      Refuses a patch that would add lint errors, and writes nothing.
+      Given a patch that sets a feature's status to bogus, which isn't in `statuses`
+      When the user runs `almanac apply patch.json`
+      Then it prints each new lint error with its file and line, such as `ALM-E007  Status "bogus" is not one of planned, in-progress, shipped, deprecated, removed`
+      And it stops with "error: This patch would introduce lint errors; nothing was written" and exits 1
+    source: [packages/cli/src/commands/apply.ts#registerApplyCommand, packages/core/src/transaction.ts#commitChanges]
+
+  - id: "3.7.5"
+    name: Errors already there don't block
+    description: |
+      Only new lint errors block a write; errors already in the almanac don't.
+      Given the almanac already has a lint error in one feature file
+      When the user applies a patch, or runs any other write command, that adds no new error
+      Then it is written as usual
+      But the existing error is still reported by `almanac lint`
+    source: [packages/core/src/transaction.ts#commitChanges, packages/core/src/transaction.ts#newErrors]
+
+  - id: "3.7.6"
+    name: Malformed patches are refused
+    description: |
+      Refuses a patch file that is missing, isn't JSON or isn't shaped like a patch.
+      Scenario: Missing file
+        When the user runs `almanac apply missing.json`
+        Then it stops with "error: Cannot read missing.json" and exits 2
+      Scenario: Not JSON
+        When the user applies a file that isn't valid JSON
+        Then it stops with "error: Patch is not valid JSON: …", followed by the parser's message, and exits 2
+      Scenario: Not a patch
+        When the patch has no operations, an `almanac` other than 1, or a key the format doesn't have
+        Then it stops with "error: Invalid patch at …" naming the problem, for example "error: Invalid patch at ops: Too small: expected array to have >=1 items", and exits 2
+    source: [packages/cli/src/commands/apply.ts#registerApplyCommand, packages/core/src/patch.ts#parsePatch, packages/schema/src/files.ts#patchSchema]
+
+  - id: "3.7.7"
+    name: Invalid operations are refused
+    description: |
+      Refuses an operation that is unknown, incomplete or malformed, naming it by its position.
+      Scenario: Unknown operation
+        When the first operation is `{"op": "frobnicate"}`
+        Then it stops with `error: ops[0]: unknown op "frobnicate"; expected one of add, set, describe, rename, remove, move, review` and exits 2
+      Scenario: Missing field
+        When the first operation adds a behaviour with no description
+        Then it stops with `error: ops[0]: "description" is required to add a behaviour` and exits 2
+      Scenario: Missing parent
+        When the first operation adds a behaviour with no parent
+        Then it stops with `error: ops[0]: "parent" (the feature) is required` and exits 2
+      Scenario: A malformed field
+        When the first operation has a field of the wrong type or leaves out one it needs, as `{"op": "set", "ref": "1.1"}` does
+        Then it stops with the field and the problem, as in `error: ops[0].values: Invalid input: expected record, received undefined`, and exits 2
+        And a key the operation doesn't take is reported with a stray dot, as in `error: ops[0].: Unrecognized key: "extra"`
+    source: [packages/core/src/patch.ts#planPatch, packages/schema/src/files.ts#PATCH_OP_SCHEMAS]
+
+  - id: "3.7.8"
+    name: An edit that changes nothing stops the patch
+    description: |
+      Stops the whole patch when an edit would leave its entity as it is, so a patch of edits can't be applied twice.
+      Given a patch that sets the tags of 1.1.6 has already been applied
+      When the user runs `almanac apply patch.json` again
+      Then it stops with "error: Nothing to change: 1.1.6 already has these values" and exits 4
+      And nothing in the patch is written
+    source: [packages/core/src/patch.ts#planPatch, packages/core/src/mutations.ts#setValues]
+
+  - id: "3.7.9"
+    name: Files changed underneath
+    description: |
+      Stops without leaving half a change when an almanac file changes while the write is being made.
+      Given an almanac file changes on disk after the command read it
+      When the command writes its changes
+      Then it stops with "error: <path> changed since it was read" and exits 4
+      And any file it had already written is put back as it was
+    source: [packages/core/src/changes.ts#applyChanges]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "3.7.7"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "3.7.1"
+      - added: "3.7.2"
+      - added: "3.7.3"
+      - added: "3.7.4"
+      - added: "3.7.5"
+      - added: "3.7.6"
+      - added: "3.7.7"
+      - added: "3.7.8"
+      - added: "3.7.9"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

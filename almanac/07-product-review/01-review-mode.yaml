@@ -1,0 +1,168 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "7.1"
+name: Review mode
+description: Go through behaviours one at a time and approve, reject or skip each.
+owner: ben
+status: shipped
+platforms: [web]
+next_behaviour: 14
+
+behaviours:
+  - id: "7.1.1"
+    name: Open review mode
+    description: |
+      Opens a full-window review on the first behaviour that still needs a decision.
+      Given the reviewer is on the almanac website
+      When the reviewer clicks "Review" in the search bar
+      Then review mode fills the window and shows one behaviour, the first in the list without a decision from this browser
+      And above it are the category and feature, as "Product review › Review mode", and the feature's description
+      And the behaviour appears as it does in its feature: ID, name, review tag, summary, steps, platform notes such as "Only on Command line", its last review and its variants
+      And a progress line reads, for example, "Behaviour 3 of 12 · 2 decided"
+    source: [packages/site/src/render.ts#renderReviewDialog, packages/site/assets/site.js#openReview, packages/site/assets/site.js#showItem]
+
+  - id: "7.1.2"
+    name: Only what needs a decision
+    description: |
+      By default the list holds only behaviours that still need a decision.
+      Given "Only what needs a decision" is ticked, as it is by default
+      When the reviewer opens review mode
+      Then the list holds the behaviours nobody has reviewed, the ones whose text changed since their review, and any already decided in this browser
+      But behaviours with a current approval or rejection are left out
+      And removed behaviours are never listed
+    source: [packages/site/src/render.ts#renderReviewDialog, packages/site/assets/site.js#needsDecision, packages/site/assets/site.js#buildQueue]
+
+  - id: "7.1.3"
+    name: Show every behaviour
+    description: |
+      Unticking the filter lists every behaviour, reviewed or not.
+      Given review mode is open
+      When the reviewer unticks "Only what needs a decision"
+      Then the list holds every behaviour in the chosen scope, approved and rejected ones included
+      And it restarts at the first behaviour without a decision from this browser, or at the first behaviour when every one is decided
+    source: [packages/site/assets/site.js#buildQueue]
+
+  - id: "7.1.4"
+    name: Review one category
+    description: |
+      Narrows the list to one category.
+      Given review mode is open
+      When the reviewer chooses a category under "Show", such as "07 Product review"
+      Then the list holds only that category's behaviours and restarts at the first without a decision
+      And choosing "Every category" lists all categories again
+    source: [packages/site/src/render.ts#renderReviewDialog, packages/site/assets/site.js#buildQueue]
+
+  - id: "7.1.5"
+    name: Review one feature
+    description: |
+      Starts review mode on just one feature's behaviours.
+      Given a feature's panel is open
+      When the reviewer clicks "Review these"
+      Then review mode opens with only that feature's behaviours
+      And "Show" names the feature, as "Feature FA-7.1 Review mode", so the reviewer can switch back to a category
+    source: [packages/site/src/render.ts#renderPanel, packages/site/assets/site.js#openReview]
+
+  - id: "7.1.6"
+    name: Approve a behaviour
+    description: |
+      Records an approval in this browser and moves on.
+      Given a behaviour is showing in review mode
+      When the reviewer clicks "Approve"
+      Then the behaviour is marked approved, with today's date, in this browser
+      And review mode moves to the next behaviour in the list without a decision
+    source: [packages/site/assets/site.js#decide, packages/site/assets/site.js#advance]
+
+  - id: "7.1.7"
+    name: Reject with a reason
+    description: |
+      Records a rejection only once the reviewer says what the behaviour should do instead.
+      Given the reviewer clicked "Reject" on a behaviour and a box headed "What should it do instead?" opened
+      When the reviewer writes the reason and clicks "Reject" below the box
+      Then the behaviour is marked rejected, with that reason and today's date, in this browser
+      And review mode moves to the next behaviour in the list without a decision
+      But clicking "Reject" with the box empty records nothing and leaves the box open
+    source: [packages/site/src/render.ts#renderReviewDialog, packages/site/assets/site.js#startReject, packages/site/assets/site.js#decide]
+
+  - id: "7.1.8"
+    name: Cancel a rejection
+    description: |
+      Backs out of a rejection without recording anything.
+      Given the "What should it do instead?" box is open
+      When the reviewer clicks "Cancel" or presses Escape
+      Then the box closes and nothing is recorded
+      And the same behaviour stays on screen with "Approve", "Reject", "Back" and "Skip"
+    source: [packages/site/assets/site.js#cancelReject]
+
+  - id: "7.1.9"
+    name: Skip and Back
+    description: |
+      Moves through the list without recording a decision.
+      Scenario: Skip
+      Given a behaviour is showing in review mode
+      When the reviewer clicks "Skip"
+      Then the next behaviour in the list shows, even one already decided
+      And nothing is recorded for the one skipped
+      Scenario: Back
+      Given the reviewer has moved past the first behaviour in the list
+      When the reviewer clicks "Back"
+      Then the previous behaviour in the list shows again
+      And "Back" is disabled on the first behaviour
+    source: [packages/site/assets/site.js#showItem]
+
+  - id: "7.1.10"
+    name: Change an earlier decision
+    description: |
+      Shows the reviewer's own decision on a behaviour and lets them change it.
+      Given the reviewer has already approved or rejected a behaviour in this browser
+      When that behaviour shows in review mode again
+      Then a line reads "You approved this." or "You rejected this: " followed by their reason, and the button they chose is outlined
+      And clicking "Approve" or "Reject" replaces the earlier decision, with the "What should it do instead?" box starting from the earlier reason
+    source: [packages/site/assets/site.js#describeDecision, packages/site/assets/site.js#startReject]
+
+  - id: "7.1.11"
+    name: End of the list
+    description: |
+      Says when there is nothing left to decide.
+      Given review mode is on the last behaviour in the list
+      When the reviewer approves, rejects or skips it
+      Then the message "Nothing left to decide here. Download your decisions below, or choose more to review." replaces the behaviour
+      And the progress line reads, for example, "End of 12 · 12 decided", or "Nothing to show" when the list was empty
+      And "Approve", "Reject" and "Skip" are disabled until the reviewer goes "Back" or chooses more
+    source: [packages/site/src/render.ts#renderReviewDialog, packages/site/assets/site.js#showItem]
+
+  - id: "7.1.12"
+    name: Close review mode
+    description: |
+      Closes review mode and keeps the decisions.
+      Given review mode is open
+      When the reviewer clicks "Close" or presses Escape
+      Then review mode closes and the almanac is back as it was
+      And the decisions made so far stay in this browser
+    source: [packages/site/assets/site.js#closeReview]
+
+  - id: "7.1.13"
+    name: Needs JavaScript
+    description: Review mode needs JavaScript. With JavaScript turned off, the "Review" button and each feature's "Review these" are hidden, and the rest of the almanac still reads normally. Printed pages leave review mode out too.
+    format: prose
+    source: [packages/site/assets/site.css]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "7.1.1"
+      - added: "7.1.2"
+      - added: "7.1.3"
+      - added: "7.1.4"
+      - added: "7.1.5"
+      - added: "7.1.6"
+      - added: "7.1.7"
+      - added: "7.1.8"
+      - added: "7.1.9"
+      - added: "7.1.10"
+      - added: "7.1.11"
+      - added: "7.1.12"
+      - added: "7.1.13"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

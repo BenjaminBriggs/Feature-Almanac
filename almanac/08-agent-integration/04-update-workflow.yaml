@@ -1,0 +1,169 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "8.4"
+name: Update workflow
+description: Bring the almanac in line with a pull request, commit, range or uncommitted work.
+owner: ben
+status: shipped
+platforms: [agents]
+next_behaviour: 13
+
+behaviours:
+  - id: "8.4.1"
+    name: Start an update
+    description: |
+      Starts bringing the almanac in line with a code change.
+      Given the workflows are installed for the user's agent
+      When the user runs the update workflow with a pull request, a commit or a range, such as `/almanac-update #123`
+      Then the agent updates the almanac for that change
+      And with nothing named it uses the uncommitted work, or the branch since `main` when there is none
+    source: [packages/cli/assets/agent/workflows/update.md, packages/cli/src/commands/agent.ts#TOOLS]
+    variants:
+      - platforms: [claude]
+        description: In Claude Code the user types `/almanac-update` followed by the pull request, commit or range.
+        source: [packages/cli/src/commands/agent.ts#TOOLS]
+      - platforms: [copilot]
+        description: In Copilot Chat the user types `/almanac-update` followed by the pull request, commit or range, and the prompt runs in agent mode.
+        source: [packages/cli/src/commands/agent.ts#TOOLS]
+      - platforms: [codex]
+        description: In Codex the user types `$almanac-update` with the change, or just asks Codex to update the almanac for a pull request, commit or branch, and Codex picks the skill up itself.
+        source: [packages/cli/src/commands/agent.ts#TOOLS]
+
+  - id: "8.4.2"
+    name: Reads a pull request without checking it out
+    description: |
+      Works from a pull request's diff and description using the GitHub CLI.
+      Given the GitHub CLI `gh` is set up for the repository
+      When the user names a pull request as `123`, `#123` or its URL
+      Then the agent finds the affected behaviours from `gh pr diff 123 --name-only` through `almanac affected --files -`
+      And it reads the diff, and takes the pull request's title and description as its intent
+      But where the description and the diff disagree, it trusts the diff
+    source: [packages/cli/assets/agent/workflows/update.md]
+
+  - id: "8.4.3"
+    name: Works from a commit or a range
+    description: |
+      Works from one commit or a range of commits.
+      When the user names a commit, such as `4f2c9e1`, or a range, such as `main...HEAD`
+      Then the agent finds the affected behaviours with `almanac affected <commit or range> --json`
+      And it reads the commit's or range's diff and commit messages
+    source: [packages/cli/assets/agent/workflows/update.md]
+
+  - id: "8.4.4"
+    name: Follows renamed files first
+    description: |
+      Repoints citations at renamed or moved files before judging anything else.
+      Given the change renames or moves files the almanac cites
+      When the update starts
+      Then the agent runs `almanac --dry-run relink` and then `almanac relink` for the same change, keeping each `#symbol`
+      And for a pull request it fetches the head with `git fetch origin pull/123/head` and relinks `<base>...FETCH_HEAD`
+      And it deals with what relink leaves behind (globs, split folders, deleted files) as part of the update
+    source: [packages/cli/assets/agent/workflows/update.md]
+
+  - id: "8.4.5"
+    name: Leaves unchanged behaviours alone
+    description: |
+      A cited file changing doesn't, by itself, change the behaviour.
+      Given a behaviour cites a file the change touches
+      When the diff is a refactor, a rename or an internal change a user couldn't see
+      Then the agent leaves the behaviour as it is
+      And lists it in its report as looked at and left alone, with the reason
+    source: [packages/cli/assets/agent/workflows/update.md]
+
+  - id: "8.4.6"
+    name: Updates behaviours the change alters
+    description: |
+      Rewrites a behaviour that's still there but now works differently.
+      Given a behaviour cites a file the change touches
+      When the diff changes its timings, limits, wording, platforms or status, or moves the symbol it cites
+      Then the agent corrects the description, platforms, status or `source`
+      And a rewritten description is a summary line and Given/When/Then, converting a prose behaviour to Gherkin
+    source: [packages/cli/assets/agent/workflows/update.md]
+
+  - id: "8.4.7"
+    name: Lists removals for the user
+    description: |
+      Never removes a behaviour the change takes away; asks instead.
+      Given the change removes something a behaviour describes
+      When the agent triages that behaviour
+      Then it lists the behaviour for the user with the reason
+      But it leaves the behaviour in place until the user decides
+    source: [packages/cli/assets/agent/workflows/update.md]
+
+  - id: "8.4.8"
+    name: Adds behaviours for new things a user can see
+    description: |
+      Covers what the change adds that the almanac doesn't describe yet.
+      Given the change touches files that no behaviour cites
+      When one of them adds something a user can observe
+      Then the agent adds a behaviour, with a `source`, to the feature it belongs to
+      And when it fits no feature, it proposes a new feature or category and waits for the user
+      But tests, build files, tooling and pure refactors get nothing
+    source: [packages/cli/assets/agent/workflows/update.md]
+
+  - id: "8.4.9"
+    name: Checks almanac edits already in the change
+    description: |
+      Reviews the change's own almanac edits rather than redoing them.
+      Given the change already edits the almanac
+      When the agent triages it
+      Then it checks those edits against the code instead of writing its own
+    source: [packages/cli/assets/agent/workflows/update.md]
+
+  - id: "8.4.10"
+    name: One patch, shown before it's applied
+    description: |
+      Records the whole change as one patch, with the pull request or commit as its ticket.
+      Given the agent has triaged every affected behaviour
+      When it writes the update
+      Then it builds one patch for the whole change, summarised in the almanac's voice from the pull request title or commit subject, with the pull request or commit URL (or short SHA) as its ticket, and a version only when the change names a release
+      And it runs it as a dry run and shows a table of ID, name, what changes and the evidence from the diff before applying it
+      But removals, new features and new categories wait for the user's go-ahead
+    source: [packages/cli/assets/agent/workflows/update.md]
+
+  - id: "8.4.11"
+    name: Leaves the edits uncommitted
+    description: |
+      Writes the almanac edits into the working tree for the user to commit with the code.
+      When the update is applied
+      Then the almanac changes are in the working tree
+      But the agent doesn't commit, push or switch branches unless the user asks
+    source: [packages/cli/assets/agent/workflows/update.md]
+
+  - id: "8.4.12"
+    name: Reports what it did and didn't change
+    description: |
+      Ends with a lint and a report of the update.
+      When the update is done
+      Then the agent runs `almanac lint`, fixing every error, then `almanac fmt`
+      And it tells the user what changed, what it looked at and left alone and why, the removals waiting for their decision, and the uncited files it judged invisible to users
+      And when the change needs no almanac update, it says so and why
+    source: [packages/cli/assets/agent/workflows/update.md]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "8.4.10"
+      - modified: "8.4.12"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "8.4.1"
+      - added: "8.4.1@claude"
+      - added: "8.4.1@copilot"
+      - added: "8.4.1@codex"
+      - added: "8.4.2"
+      - added: "8.4.3"
+      - added: "8.4.4"
+      - added: "8.4.5"
+      - added: "8.4.6"
+      - added: "8.4.7"
+      - added: "8.4.8"
+      - added: "8.4.9"
+      - added: "8.4.10"
+      - added: "8.4.11"
+      - added: "8.4.12"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

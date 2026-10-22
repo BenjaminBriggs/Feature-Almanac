@@ -1,0 +1,106 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "4.2"
+name: Automatic fixes
+description: Fix formatting, file names and ID counters for you.
+owner: ben
+status: shipped
+platforms: [cli]
+next_behaviour: 8
+
+behaviours:
+  - id: "4.2.1"
+    name: Fixing in place
+    description: |
+      Fixes what it safely can, names the files it changed, then lints the result.
+      Given an almanac with fixable problems, such as a misnamed file or a counter that has fallen behind
+      When the user runs `almanac lint --fix`
+      Then the files are fixed in place and stderr lists them, such as "Fixed 01-editing/01-markdown-editor.yaml"
+      And a renamed file is listed under its new name, and under its old name too when its content was also fixed
+      And lint then lists the problems that remain, and exits as `almanac lint` would on the fixed almanac
+      And with `--json`, `data.fixed` lists the changed files
+    source: [packages/cli/src/commands/check.ts#registerCheckCommands, packages/core/src/fix.ts#fixWorkspace]
+
+  - id: "4.2.2"
+    name: Formatting fixes
+    description: |
+      Applies the same normalisation as `almanac fmt`.
+      Given a feature file with its ID written as `id: 1.1` and its behaviours out of ID order
+      When the user runs `almanac lint --fix`
+      Then the ID becomes `id: "1.1"`, which clears ALM-E003
+      And the behaviours are sorted by ID, which clears ALM-E010
+      And key order, quoting and multi-line text are normalised as `almanac fmt` does
+    source: [packages/core/src/fix.ts#fixWorkspace, packages/core/src/format.ts#planFormat, packages/core/src/format.ts#formatDocument]
+
+  - id: "4.2.3"
+    name: File and folder names
+    description: |
+      Renames files and folders to match their ID and name.
+      Given feature 1.1 "Markdown editor" stored as `1-editor.yaml` in the folder `01-edit` of category 1 "Editing"
+      When the user runs `almanac lint --fix`
+      Then the file becomes `01-markdown-editor.yaml` and the folder `01-editing`, which clears ALM-W001
+      And a name is the number padded to two digits (three from 100), a hyphen, then the name in lowercase ASCII kebab-case cut to 48 characters
+      But nothing is renamed onto a file or folder that already exists
+    source: [packages/core/src/format.ts#planFormat, packages/core/src/names.ts#featureFileName, packages/core/src/names.ts#categoryDirName, packages/core/src/names.ts#slugify]
+
+  - id: "4.2.4"
+    name: ID counters
+    description: |
+      Raises ID counters past every ID already used, so no ID is ever handed out twice.
+      Given feature 1.1 whose `next_behaviour` is 2 while behaviours up to 1.1.3 exist
+      When the user runs `almanac lint --fix`
+      Then `next_behaviour` becomes 4, which clears ALM-E012
+      And a missing `next_category`, `next_feature` or `next_behaviour` is added the same way, which clears ALM-E006
+      But no counter is ever lowered, and no ID changes
+    source: [packages/core/src/compile.ts#Compiler.checkCounters, packages/core/src/format.ts#planFormat]
+
+  - id: "4.2.5"
+    name: Fixes that unlock others
+    description: |
+      Keeps fixing until nothing changes, so one fix can make way for the next.
+      Given a misnamed feature file with `id: 1.1` unquoted and its counter behind
+      When the user runs `almanac lint --fix` once
+      Then the ID is quoted, which lets the file validate, and its name and counter are fixed in the same run
+      And it stops after 5 rounds
+    source: [packages/core/src/fix.ts#fixWorkspace]
+
+  - id: "4.2.6"
+    name: Problems it can't fix
+    description: |
+      Leaves everything that needs judgement to the user.
+      Given an almanac with an unknown key and a broken reference as well as fixable problems
+      When the user runs `almanac lint --fix`
+      Then the fixable problems are fixed and the others are still listed
+      And the command exits with code 1 while any error remains
+      And a file that isn't valid YAML is left untouched
+    source: [packages/core/src/fix.ts#fixWorkspace, packages/core/src/format.ts#planFormat]
+
+  - id: "4.2.7"
+    name: Dry run
+    description: |
+      Shows the fixes as a diff without writing anything.
+      Given an almanac with fixable problems
+      When the user runs `almanac --dry-run lint --fix`
+      Then a unified diff of every fix is printed and no file changes
+      And a renamed file shows as removed under its old name and added under its new one
+      And the problems listed are those of the almanac as it is, before fixing
+    source: [packages/cli/src/commands/check.ts#registerCheckCommands, packages/core/src/fix.ts#snapshot, packages/core/src/changes.ts#diffSnapshots]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "4.2.1"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "4.2.1"
+      - added: "4.2.2"
+      - added: "4.2.3"
+      - added: "4.2.4"
+      - added: "4.2.5"
+      - added: "4.2.6"
+      - added: "4.2.7"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

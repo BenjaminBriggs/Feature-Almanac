@@ -1,0 +1,132 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "8.3"
+name: Generate workflow
+description: Build the first almanac from the code, with approval of the structure.
+owner: ben
+status: shipped
+platforms: [agents]
+next_behaviour: 8
+
+behaviours:
+  - id: "8.3.1"
+    name: Start generating
+    description: |
+      Starts building the first almanac for a codebase.
+      Given the workflows are installed for the user's agent
+      When the user runs the generate workflow, optionally with the path to the code
+      Then the agent builds an almanac for the code at that path
+      And with no path it uses the current repository
+    source: [packages/cli/assets/agent/workflows/generate.md, packages/cli/src/commands/agent.ts#TOOLS]
+    variants:
+      - platforms: [claude]
+        description: In Claude Code the user types `/almanac-generate`, optionally followed by the path.
+        source: [packages/cli/src/commands/agent.ts#TOOLS]
+      - platforms: [copilot]
+        description: In Copilot Chat the user types `/almanac-generate`, optionally followed by the path, and the prompt runs in agent mode.
+        source: [packages/cli/src/commands/agent.ts#TOOLS]
+      - platforms: [codex]
+        description: In Codex the user types `$almanac-generate`, or just asks Codex to create, generate or bootstrap an almanac for a codebase that has none, and Codex picks the skill up itself.
+        source: [packages/cli/src/commands/agent.ts#TOOLS]
+
+  - id: "8.3.2"
+    name: Creates the almanac when there is none
+    description: |
+      Sets up a new almanac before writing any of it.
+      Given the repository has no `almanac.yaml`
+      When the generate workflow starts
+      Then the agent works out the product name, a 2–4 capital letter prefix and the platforms from the code
+      And it runs `almanac init --product "<name>" --prefix <PREFIX> --platforms <tags>` from the repository root, which creates `almanac/`
+      But it asks the user only when the product name or prefix is genuinely unclear
+    source: [packages/cli/assets/agent/workflows/generate.md]
+
+  - id: "8.3.3"
+    name: Points the almanac at the code
+    description: |
+      Configures where the code is and who owns it.
+      Given the almanac exists
+      When the generate workflow sets up
+      Then the agent sets `code:` in `almanac/almanac.yaml` so that `source` paths resolve, such as `code: { path: .. }`, adding `repo:` and `ref:` when there's a GitHub remote
+      And when the product spans several repositories, `code.path` is the folder that contains them all
+      And it adds the product's owners, asking the user who owns what when it isn't obvious
+    source: [packages/cli/assets/agent/workflows/generate.md]
+
+  - id: "8.3.4"
+    name: Proposes the structure and waits
+    description: |
+      Shows the proposed categories and features and stops for the user's approval.
+      Given the almanac is set up
+      When the agent has scanned the code for what a user can do
+      Then it shows a table of categories and their features, each with a one-line description and platforms, from a dry run
+      And it aims for 4–10 categories with 3–12 features each
+      And it waits for the user's approval before applying them
+      But it writes no behaviours at this stage
+    source: [packages/cli/assets/agent/workflows/generate.md]
+
+  - id: "8.3.5"
+    name: Writes behaviours one feature at a time
+    description: |
+      After approval, fills in each feature's behaviours from its code.
+      Given the user has approved the categories and features
+      When the agent works through the features
+      Then each feature gets one patch of behaviours, typically 3–15, with the summary "Initial almanac.", each behaviour a summary line and Given/When/Then with a `source`
+      And platform differences become variants, a behaviour that exists only on some platforms gets `platforms`, and code behind a feature flag or not yet reachable is `in-progress` with its `flag`
+      And the agent runs `almanac lint` after each feature
+    source: [packages/cli/assets/agent/workflows/generate.md]
+
+  - id: "8.3.6"
+    name: Verifies what it wrote
+    description: |
+      Checks every feature it wrote against the code with the verify workflow.
+      Given every feature has its behaviours
+      When the agent reaches the verify stage
+      Then it runs the verify workflow on every feature, in a fresh subagent or session when it can, so the check doesn't reuse its own reading of the code
+      And it fixes or reports every mismatch the check finds
+    source: [packages/cli/assets/agent/workflows/generate.md, packages/cli/src/commands/agent.ts#TOOLS]
+    variants:
+      - platforms: [claude]
+        description: In Claude Code the agent runs it as `/almanac-verify`.
+        source: [packages/cli/src/commands/agent.ts#TOOLS]
+      - platforms: [copilot]
+        description: In Copilot the agent runs the `/almanac-verify` prompt.
+        source: [packages/cli/src/commands/agent.ts#TOOLS]
+      - platforms: [codex]
+        description: In Codex the agent uses the `$almanac-verify` skill.
+        source: [packages/cli/src/commands/agent.ts#TOOLS]
+
+  - id: "8.3.7"
+    name: Finishes with a strict lint and a summary
+    description: |
+      Ends with a clean almanac and tells the user how to review it.
+      Given the behaviours are verified
+      When the agent finishes
+      Then it runs `almanac lint --strict --require-source` and fixes everything it reports, then `almanac fmt`
+      And it tells the user to run `almanac site serve --open` to review the almanac
+      And it summarises the categories, features and behaviour counts it created, and anything it was unsure about
+    source: [packages/cli/assets/agent/workflows/generate.md]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "8.3.3"
+      - modified: "8.3.5"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "8.3.1"
+      - added: "8.3.1@claude"
+      - added: "8.3.1@copilot"
+      - added: "8.3.1@codex"
+      - added: "8.3.2"
+      - added: "8.3.3"
+      - added: "8.3.4"
+      - added: "8.3.5"
+      - added: "8.3.6"
+      - added: "8.3.6@claude"
+      - added: "8.3.6@copilot"
+      - added: "8.3.6@codex"
+      - added: "8.3.7"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

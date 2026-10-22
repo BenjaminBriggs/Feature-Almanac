@@ -1,0 +1,83 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "2.4"
+name: Compiled model
+description: Write the whole almanac as one JSON file for tools and broad questions.
+owner: ben
+status: shipped
+platforms: [cli]
+next_behaviour: 6
+
+behaviours:
+  - id: "2.4.1"
+    name: Write almanac.json
+    description: |
+      Writes the whole almanac to dist/almanac.json and says what is in it.
+      Given an almanac in `almanac/` with 2 categories, 3 features and 4 behaviours
+      When the user runs `almanac build` in the folder that holds `almanac/`
+      Then the compiled almanac is written to `dist/almanac.json` in that folder, or inside the almanac folder for a standalone almanac
+      And it prints any warnings, then "Wrote dist/almanac.json: 2 categories, 3 features, 4 behaviours (0 errors, 6 warnings)"
+      And the counts include removed entities
+      And run from a subfolder, it writes the same file but prints its full path
+    source: [packages/cli/src/commands/check.ts#registerCheckCommands, packages/core/src/root.ts#projectDir]
+
+  - id: "2.4.2"
+    name: Choose the output file
+    description: |
+      Writes the model to a path the user chooses.
+      Given an almanac
+      When the user runs `almanac build --out out/model.json`
+      Then the model is written to `out/model.json`, relative to the current folder, creating folders as needed
+      And the path is printed relative to the current folder, or in full when it is outside it
+    source: [packages/cli/src/commands/check.ts#registerCheckCommands]
+
+  - id: "2.4.3"
+    name: What the file holds
+    description: |
+      Holds the product, its settings, every entity and the lint results in one JSON object.
+      Given an almanac
+      When the user runs `almanac build`
+      Then the file has `almanac` (always 1), `generatedAt` (the time of the build), `product`, `platforms`, `platformGroups`, `statuses`, `owners`, `categories` and `diagnostics`
+      And `categories` holds every feature, behaviour and variant, with status per platform, sources, changelogs and reviews
+      And inside a git repository it also has `gitRef`, the commit the almanac was built from
+      And when almanac.yaml's `code` names a `repo`, it also has `code` with that repo, ref and path
+    source: [packages/core/src/compile.ts#compile, packages/cli/src/commands/check.ts#registerCheckCommands]
+
+  - id: "2.4.4"
+    name: Lint errors don't stop it
+    description: |
+      Still writes the model when the almanac has lint errors, but exits with 1.
+      Given the almanac has lint errors
+      When the user runs `almanac build`
+      Then the errors are listed and the model is written anyway, leaving out any file that fails validation
+      And the summary line counts the problems, as in "(3 errors, 5 warnings)"
+      And the exit code is 1, and with `--json` the envelope has `"ok": false`
+    source: [packages/cli/src/commands/check.ts#registerCheckCommands]
+
+  - id: "2.4.5"
+    name: Build summary as JSON
+    description: |
+      Reports the build in the JSON envelope.
+      Given an almanac
+      When the user runs `almanac --json build`
+      Then `data` has the full output path as `out`, the `categories`, `features` and `behaviours` counts, and `dryRun`
+      And `diagnostics` holds every lint problem
+    source: [packages/cli/src/commands/check.ts#registerCheckCommands]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "2.4.1"
+      - modified: "2.4.3"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "2.4.1"
+      - added: "2.4.2"
+      - added: "2.4.3"
+      - added: "2.4.4"
+      - added: "2.4.5"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

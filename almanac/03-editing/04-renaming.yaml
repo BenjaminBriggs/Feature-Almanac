@@ -1,0 +1,104 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "3.4"
+name: Renaming
+description: Rename an entity, and its file or folder with it.
+owner: ben
+status: shipped
+platforms: [cli]
+next_behaviour: 8
+
+behaviours:
+  - id: "3.4.1"
+    name: Rename a feature and its file
+    description: |
+      Renames a feature and its file, keeping its ID.
+      Given feature 1.1 Markdown editor is in `01-editing/01-markdown-editor.yaml`
+      When the user runs `almanac rename 1.1 --name "Note editor"`
+      Then it prints "Renamed 1.1 to Note editor (01-editing/01-note-editor.yaml)"
+      And `01-markdown-editor.yaml` is gone
+      And the changelog says "Renamed Markdown editor to Note editor."
+      But the feature's ID stays 1.1
+    source: [packages/core/src/mutations.ts#renameEntity, packages/cli/src/commands/write.ts#registerWriteCommands]
+
+  - id: "3.4.2"
+    name: Rename a category and its folder
+    description: |
+      Renames a category and its folder, taking its feature files along.
+      Given category 1 Editing is in `01-editing/`
+      When the user runs `almanac rename 1 --name "Writing & Editing"`
+      Then it prints "Renamed 1 to Writing & Editing (01-writing-editing/category.yaml)"
+      And the folder, with every feature file in it, is now `01-writing-editing/`
+      But no changelog entry is written, because categories have no changelog
+    source: [packages/core/src/mutations.ts#renameEntity]
+
+  - id: "3.4.3"
+    name: Rename a behaviour
+    description: |
+      Renames a behaviour where it is, in its feature's file.
+      Given behaviour 1.1.2 is named Bold
+      When the user runs `almanac rename 1.1.2 --name "Bold formatting"`
+      Then it prints "Renamed 1.1.2 to Bold formatting (01-editing/01-markdown-editor.yaml)"
+      And the changelog says "Renamed Bold to Bold formatting."
+    source: [packages/core/src/mutations.ts#renameEntity]
+
+  - id: "3.4.4"
+    name: File names follow the name
+    description: |
+      Builds file and folder names from the number and the name, in plain lowercase ASCII.
+      When the user renames feature 1.2 to "Ünïcode Ñame — with symbols!!"
+      Then its file becomes `02-unicode-name-with-symbols.yaml`
+      And accents are dropped, each run of other characters becomes one hyphen, and the name part is cut to 48 characters
+      And a name with no ASCII letters or digits left, such as "日本", gives `02-untitled.yaml`
+      And the number is padded to 2 digits, or 3 from 100 on
+    source: [packages/core/src/names.ts#slugify, packages/core/src/names.ts#padNumber, packages/core/src/names.ts#featureFileName, packages/core/src/names.ts#categoryDirName]
+
+  - id: "3.4.5"
+    name: Variants have no name
+    description: |
+      Refuses to rename a variant.
+      When the user runs `almanac rename 1.1.1@android --name "Bold on Android"`
+      Then it stops with "error: Variants have no name; rename behaviour 1.1.1 instead" and exits 2
+    source: [packages/core/src/mutations.ts#renameEntity]
+
+  - id: "3.4.6"
+    name: The same or an empty name is refused
+    description: |
+      Refuses a name that is blank or is already the entity's name.
+      Scenario: The same name
+        Given behaviour 1.1.2 is named Bold formatting
+        When the user runs `almanac rename 1.1.2 --name "Bold formatting"`
+        Then it stops with "error: Nothing to change: 1.1.2 is already named Bold formatting" and exits 4
+      Scenario: A blank name
+        When the user runs `almanac rename 1.1.2 --name " "`
+        Then it stops with "error: A name is required (--name)" and exits 2
+    source: [packages/core/src/mutations.ts#renameEntity]
+
+  - id: "3.4.7"
+    name: Names over the limit are refused
+    description: |
+      Refuses a name over 60 characters for a category or feature, or over 80 for a behaviour.
+      When the user renames feature 1.1 to a name 61 characters long
+      Then it prints "ALM-E009  name: Too big: expected string to have <=60 characters" with the file and line
+      And it stops with "error: Writing this rename would introduce lint errors; nothing was written" and exits 1
+      And neither the name nor the file changes
+    source: [packages/cli/src/commands/write.ts#commitEdit, packages/schema/src/files.ts#featureSchema, packages/schema/src/files.ts#behaviourSchema]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "3.4.4"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "3.4.1"
+      - added: "3.4.2"
+      - added: "3.4.3"
+      - added: "3.4.4"
+      - added: "3.4.5"
+      - added: "3.4.6"
+      - added: "3.4.7"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

@@ -1,0 +1,6 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/category.json
+id: 8
+name: Agent integration
+description: Teaching coding agents to read and maintain the almanac.
+owner: ben
+next_feature: 8

@@ -1,0 +1,74 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "8.7"
+name: Ask workflow
+description: Answer questions about the app from the almanac, citing behaviour IDs.
+owner: ben
+status: shipped
+platforms: [agents]
+next_behaviour: 5
+
+behaviours:
+  - id: "8.7.1"
+    name: Ask a question
+    description: |
+      Asks the agent how part of the app works.
+      Given the workflows are installed for the user's agent
+      When the user runs the ask workflow with a question, such as `/almanac-ask how does autosave work?`
+      Then the agent answers it from the almanac
+    source: [packages/cli/assets/agent/workflows/ask.md, packages/cli/src/commands/agent.ts#TOOLS]
+    variants:
+      - platforms: [claude]
+        description: In Claude Code the user types `/almanac-ask` followed by the question.
+        source: [packages/cli/src/commands/agent.ts#TOOLS]
+      - platforms: [copilot]
+        description: In Copilot Chat the user types `/almanac-ask` followed by the question, and the prompt runs in agent mode.
+        source: [packages/cli/src/commands/agent.ts#TOOLS]
+      - platforms: [codex]
+        description: In Codex the user types `$almanac-ask` with the question, or just asks how part of the app works or which behaviour ID covers something, and Codex picks the skill up itself.
+        source: [packages/cli/src/commands/agent.ts#TOOLS]
+
+  - id: "8.7.2"
+    name: Answers with behaviour IDs and platforms
+    description: |
+      Answers in plain language and cites the behaviours it relies on.
+      Given the almanac covers the question
+      When the agent answers
+      Then the answer is in plain language and cites every behaviour it relies on by its full ID, such as `PD-1.2.3`
+      And it says which platforms each part of the answer applies to
+    source: [packages/cli/assets/agent/workflows/ask.md]
+
+  - id: "8.7.3"
+    name: Answers for one platform
+    description: |
+      Gives the answer as it stands on the platform the user asks about.
+      Given the question is about one platform, such as Android
+      When the agent looks up the behaviours
+      Then it reads them for that platform with `almanac show <ref> --platform <tag> --json`, so the answer reflects that platform's variants
+    source: [packages/cli/assets/agent/workflows/ask.md]
+
+  - id: "8.7.4"
+    name: Says when the almanac doesn't cover it
+    description: |
+      Doesn't guess when the almanac has no answer.
+      Given no behaviour in the almanac covers the question
+      When the agent answers
+      Then it says plainly that the almanac doesn't cover it
+      And it offers to check the code and add the missing behaviour
+      But it doesn't answer from the code on its own
+    source: [packages/cli/assets/agent/workflows/ask.md]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "8.7.1"
+      - added: "8.7.1@claude"
+      - added: "8.7.1@copilot"
+      - added: "8.7.1@codex"
+      - added: "8.7.2"
+      - added: "8.7.3"
+      - added: "8.7.4"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

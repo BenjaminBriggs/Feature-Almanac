@@ -1,0 +1,176 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "5.1"
+name: Affected behaviours
+description: List the features and behaviours a commit, range, branch or file list touches.
+owner: ben
+status: shipped
+platforms: [cli]
+next_behaviour: 14
+
+behaviours:
+  - id: "5.1.1"
+    name: Uncommitted work
+    description: |
+      Lists what the uncommitted work touches, new files included.
+      Given a repository with edited files and new, untracked ones
+      When the user runs `almanac affected`
+      Then it reports on every file changed since the last commit, plus untracked files under the code path that git doesn't ignore
+      And the first line reads like "uncommitted changes: 4 files changed, 3 under the code path."
+    source: [packages/cli/src/commands/change.ts#changedFiles, packages/cli/src/commands/change.ts#untracked, packages/cli/src/commands/affected.ts#report]
+
+  - id: "5.1.2"
+    name: One commit
+    description: |
+      Lists what one commit touches.
+      Given a commit 4f2c9e1
+      When the user runs `almanac affected 4f2c9e1`
+      Then it reports on the files that commit changed compared with its first parent
+      And for the first commit it is every file
+      But for a merge commit it is every file that differs from either parent, so changes made on the target branch since the fork are listed too, and a file changed on both sides is listed twice
+    source: [packages/cli/src/commands/change.ts#changedFiles]
+
+  - id: "5.1.3"
+    name: A range
+    description: |
+      Lists what a range of commits touches.
+      Given a branch with commits since it left main
+      When the user runs `almanac affected main...HEAD`
+      Then it reports on the files changed across the range, as `git diff main...HEAD` sees them
+      And a two-dot range such as `main..HEAD` works too, with git's meaning
+    source: [packages/cli/src/commands/change.ts#changedFiles]
+
+  - id: "5.1.4"
+    name: A branch since its base
+    description: |
+      Lists everything on the branch, uncommitted work included.
+      Given a branch that left main some commits ago, with uncommitted edits
+      When the user runs `almanac affected --base main`
+      Then it reports on everything changed since the branch left main, uncommitted files and untracked files under the code path included
+      And the first line starts "this branch since main:"
+    source: [packages/cli/src/commands/change.ts#changedFiles]
+
+  - id: "5.1.5"
+    name: A list of files
+    description: |
+      Reads the changed files from a file or stdin, such as a pull request's file list.
+      Given the output of `gh pr diff 123 --name-only`
+      When the user pipes it into `almanac affected --files -`
+      Then each line is taken as a changed file, and the first line starts "the files on stdin:"
+      And `git diff --name-status` output works too, renames included
+      And `--files changes.txt` reads the list from a file
+      And outside a git repository the paths are taken as relative to the code path
+    source: [packages/cli/src/commands/change.ts#changedFiles, packages/cli/src/commands/change.ts#prefixes, packages/core/src/affected.ts#parseChangedFiles]
+
+  - id: "5.1.6"
+    name: The report
+    description: |
+      Lists each affected feature with its behaviours and the cited files that changed.
+      Given a change to src/Editor/Bold.swift, which behaviour PL-1.1.1 cites as `src/Editor/Bold.swift#toggleBold`
+      When the user runs `almanac affected`
+      Then it prints the feature "PL-1.1  Markdown editor", the behaviour "PL-1.1.1  Bold formatting" under it, and "modified  src/Editor/Bold.swift#toggleBold" under that
+      And a citation from a variant ends with its ref, such as "(variant PL-1.1.4@android)"
+      And matches on the feature's own `code` entries are listed under "feature code"
+    source: [packages/cli/src/commands/affected.ts#report, packages/core/src/affected.ts#affectedBy]
+
+  - id: "5.1.7"
+    name: Folders and globs
+    description: |
+      Matches entries that name a folder or a glob, not only exact files.
+      Given behaviour PL-1.1.3 citing `src/Editor/`, PL-1.1.5 citing `src/Editor/*.swift`, and a change to src/Editor/Bold.swift
+      When the user runs `almanac affected`
+      Then both behaviours are listed, each with "via" and the entry that matched, such as "modified  src/Editor/Bold.swift  via src/Editor/"
+      And `*` and `?` match within one folder while `**` crosses folders
+    source: [packages/core/src/affected.ts#entryPattern, packages/core/src/entries.ts#globRegExp, packages/cli/src/commands/affected.ts#citationLine]
+
+  - id: "5.1.8"
+    name: Renamed files
+    description: |
+      Shows renamed files, and flags entries that still cite the old path.
+      Given a change that renamed src/Editor/Save.swift to src/Store/Save.swift
+      When the user runs `almanac affected`
+      Then an entry citing the new path shows "renamed   src/Store/Save.swift#save  (was src/Editor/Save.swift)"
+      And an entry still citing the old path shows "renamed   src/Editor/Save.swift#save  stale: now src/Store/Save.swift (almanac relink)"
+    source: [packages/cli/src/commands/affected.ts#citationLine, packages/core/src/affected.ts#affectedBy]
+
+  - id: "5.1.9"
+    name: Files nothing cites
+    description: |
+      Lists changed files that no behaviour or feature cites, and notes edits to the almanac.
+      Given a change to src/New.swift, which nothing cites, and to an almanac file
+      When the user runs `almanac affected`
+      Then "added     src/New.swift" is listed under "Cited by nothing (1):"
+      And the report ends "The change also edits 1 almanac file."
+      And almanac files are never matched against citations, and files outside the code path are only counted in the first line
+      And a change with no files under the code path says "No behaviour or feature cites a changed file."
+    source: [packages/cli/src/commands/affected.ts#report, packages/cli/src/commands/change.ts#resolveChange]
+
+  - id: "5.1.10"
+    name: Removed entries left out
+    description: |
+      Leaves out behaviours, variants, features and categories that are removed.
+      Given behaviour 1.1.3, removed on every platform, citing src/Editor/, and a change to src/Editor/Bold.swift
+      When the user runs `almanac affected`
+      Then 1.1.3 isn't listed
+      And a file that only removed entries cite is listed under "Cited by nothing"
+    source: [packages/core/src/affected.ts#affectedBy, packages/core/src/entries.ts#allRemoved]
+
+  - id: "5.1.11"
+    name: JSON output
+    description: |
+      Gives the whole report as data for agents and scripts.
+      Given any change
+      When the user runs `almanac --json affected`
+      Then `data` holds `change`, `files` (the changed files under the code path, each with `status`, and `from` for a rename), `outside`, `almanacFiles`, `features`, `uncited` and `needsUpdate`
+      And each listed behaviour carries its `citations`, each with the `entry` as written and the changed `file`
+    source: [packages/cli/src/commands/affected.ts#registerAffectedCommand]
+
+  - id: "5.1.12"
+    name: Usage errors
+    description: |
+      Stops with exit code 2 when it can't tell what changed.
+      Given any almanac
+      When the user runs `almanac affected main...HEAD --base main`
+      Then it stops with exit code 2 and "error: give a change or --base, not both"
+      And `--files` with a change or `--base` stops with "error: --files replaces the change; give one or the other"
+      And a `--files` path that doesn't exist stops with "error: changes.txt not found"
+      And a git command that fails, such as outside a repository, stops with "error: git … failed:" and git's own message
+    source: [packages/cli/src/commands/change.ts#resolveChange, packages/cli/src/commands/change.ts#changedFiles, packages/cli/src/commands/change.ts#git]
+
+  - id: "5.1.13"
+    name: Almanac at the top of the repository
+    description: |
+      Counts every changed file as an almanac edit when the almanac folder is the top of the git repository.
+      Given a standalone almanac whose almanac.yaml sits at the top of its git repository, with `code.path: .`, and a change to a file a behaviour cites
+      When the user runs `almanac affected`
+      Then the first line reads like "uncommitted changes: 1 file changed, 0 under the code path."
+      And the report says "No behaviour or feature cites a changed file." and "The change also edits 1 almanac file."
+      And `almanac affected --check` passes whatever the change touches
+    source: [packages/cli/src/commands/change.ts#resolveChange, packages/cli/src/commands/change.ts#prefixes, packages/cli/src/commands/affected.ts#registerAffectedCommand]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "5.1.1"
+      - modified: "5.1.2"
+      - modified: "5.1.4"
+      - added: "5.1.13"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "5.1.1"
+      - added: "5.1.2"
+      - added: "5.1.3"
+      - added: "5.1.4"
+      - added: "5.1.5"
+      - added: "5.1.6"
+      - added: "5.1.7"
+      - added: "5.1.8"
+      - added: "5.1.9"
+      - added: "5.1.10"
+      - added: "5.1.11"
+      - added: "5.1.12"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

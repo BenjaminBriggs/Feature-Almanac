@@ -1,0 +1,6 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/category.json
+id: 3
+name: Editing
+description: Changing the almanac through the CLI so IDs, files and changelogs stay right.
+owner: ben
+next_feature: 9

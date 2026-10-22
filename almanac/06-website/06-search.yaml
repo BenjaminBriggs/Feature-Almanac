@@ -1,0 +1,140 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "6.6"
+name: Search
+description: Search names, descriptions and IDs as you type.
+owner: ben
+status: shipped
+platforms: [web]
+next_behaviour: 12
+
+behaviours:
+  - id: "6.6.1"
+    name: Filter as you type
+    description: |
+      Narrows the page to matching features as the user types.
+      When the user types "bold" in the search box
+      Then only the cards of features that match stay on the page, and categories left with no cards are hidden
+      And the line under the box says, for example, "1 feature · 2 behaviours match “bold” — Enter opens the first"
+      And every match of the words on the page is highlighted, whole word
+    source: [packages/site/assets/site.js#search, packages/site/assets/site.js#summary, packages/site/assets/site.js#highlight]
+
+  - id: "6.6.2"
+    name: Every word must match
+    description: |
+      Finds what contains every word typed, counting the feature, category and platforms around it.
+      When the user types "website close"
+      Then the "Close a panel" behaviour matches, because "close" is in its name and "Website" is the name of its category
+      And typing a platform or status label, such as "ios" or "available", shows every feature on that platform or with that status
+      But a behaviour is only listed under its card when at least one word is in its own name, description, steps, variants or tags
+    source: [packages/site/src/search.ts#searchDocuments, packages/site/src/search.ts#SEARCH_OPTIONS, packages/site/assets/site.js#search]
+
+  - id: "6.6.3"
+    name: Word starts and typos
+    description: |
+      Matches words from their start and forgives small typos.
+      When the user types part of a word or misspells it
+      Then words that start with what was typed match, so "edi" finds "editor"
+      And words of 4 to 7 letters may be one letter out and longer words two, so "formating" finds "formatting"
+      But words shorter than 4 letters must match exactly from their start
+    source: [packages/site/assets/site.js#searchOptions, packages/site/src/search.ts#SEARCH_OPTIONS]
+
+  - id: "6.6.4"
+    name: Matching behaviours on cards
+    description: |
+      Lists the matching behaviours on their feature's card.
+      Given a search matches behaviours in a feature
+      When its card is shown
+      Then up to 5 matching behaviours are listed on the card, each with its reference, name and text, cut to 157 characters and "…" when longer than 160, and "and 2 more in this feature" counts the rest
+      And a removed behaviour that matches is listed with a "Removed" tag
+      And clicking one opens the feature's panel at that behaviour, with every matching behaviour tinted and the words highlighted
+    source: [packages/site/assets/site.js#renderMatches, packages/site/assets/site.js#route, packages/site/src/search.ts#searchDocuments]
+
+  - id: "6.6.5"
+    name: Go to an ID
+    description: |
+      Offers a button to open the feature or behaviour whose ID is typed.
+      When the user types a feature or behaviour ID, with or without the prefix and in any case, such as "fa-6.6.1", "6.6" or "6.6.1@web"
+      Then a "Go to FA-6.6.1 Filter as you type" button appears under the box and opens it
+      But the cards aren't narrowed to that ID, because IDs aren't part of what is searched: its letters and numbers are matched as ordinary words
+      And a category's ID, or an ID with another product's prefix, gets no button
+    source: [packages/site/assets/site.js#jumpTarget, packages/site/assets/site.js#normaliseId]
+
+  - id: "6.6.6"
+    name: Enter opens the first result
+    description: |
+      Opens the first result when the user presses Enter.
+      Given a search with results
+      When the user presses Enter in the search box
+      Then the first behaviour listed on the first card opens in its panel, or the card's own panel when it lists none
+      And when the search is an ID, Enter opens that feature or behaviour
+    source: [packages/site/assets/site.js#firstResult, packages/site/assets/site.js#navigate]
+
+  - id: "6.6.7"
+    name: No results
+    description: |
+      Says so when nothing matches.
+      When the user types something that matches nothing, such as "zzzzqq"
+      Then the page shows "No signal" and "Nothing matches “zzzzqq”. Try a feature name, a word from what it does, a platform, or an ID such as FA-1.1.1.", with an ID from the almanac
+      And every category and the category bar are hidden
+    source: [packages/site/assets/site.js#search, packages/site/src/render.ts#renderSite]
+
+  - id: "6.6.8"
+    name: Slash to search
+    description: |
+      Jumps to the search box when the user presses "/".
+      When the user presses "/" anywhere outside a text field
+      Then the search box takes focus with any text in it selected
+      And the "/" hint in the box is hidden while it has focus
+    source: [packages/site/assets/site.js, packages/site/assets/site.css]
+
+  - id: "6.6.9"
+    name: Clear the search
+    description: |
+      Brings everything back when the search is cleared.
+      Given a search has been typed
+      When the user presses Escape in the search box or clicks "Clear"
+      Then the box empties and every category and card comes back, without highlights
+      And "Clear" leaves the focus in the box
+    source: [packages/site/assets/site.js#search, packages/site/assets/site.js]
+
+  - id: "6.6.10"
+    name: Search in the address
+    description: |
+      Keeps the search in the page's address so it can be shared.
+      When the user types a search
+      Then the address gains "?q=" and the search, replacing the current history entry rather than adding one
+      And opening an address with "?q=" runs that search as the page loads
+    source: [packages/site/assets/site.js#syncUrl, packages/site/assets/site.js]
+
+  - id: "6.6.11"
+    name: Back to the results
+    description: |
+      Scrolls back up to the results when the user types further down the page.
+      Given the user has scrolled past the hero
+      When they type in the search box
+      Then the page scrolls up so the results start just under the search bar
+    source: [packages/site/assets/site.js#revealResults]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "6.6.4"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "6.6.1"
+      - added: "6.6.2"
+      - added: "6.6.3"
+      - added: "6.6.4"
+      - added: "6.6.5"
+      - added: "6.6.6"
+      - added: "6.6.7"
+      - added: "6.6.8"
+      - added: "6.6.9"
+      - added: "6.6.10"
+      - added: "6.6.11"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

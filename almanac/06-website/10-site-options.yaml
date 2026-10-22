@@ -1,0 +1,73 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "6.10"
+name: Site options
+description: Set the title, tagline and status labels.
+owner: ben
+status: shipped
+platforms: [cli]
+next_behaviour: 6
+
+behaviours:
+  - id: "6.10.1"
+    name: Tab title
+    description: |
+      Sets the title shown in the browser tab.
+      Given `almanac.yaml` has `title: Example Notes` under `site:`
+      When the site is built or served
+      Then the browser tab reads "Example Notes — Feature Almanac"
+      And without a title it uses the product's name
+      But the hero still shows the product's name, whatever the title
+    source: [packages/site/src/options.ts#siteOptions, packages/site/src/render.ts#renderSite]
+
+  - id: "6.10.2"
+    name: Tagline
+    description: |
+      Sets the line under the product's name in the hero.
+      Given `almanac.yaml` has `tagline: Everything the app does.` under `site:`
+      When the site is built or served
+      Then the hero shows "Everything the app does." under the product's name
+      And without a tagline it shows the product's description, or "Everything the app does, grouped by area." when there is none
+    source: [packages/site/src/options.ts#siteOptions, packages/site/src/render.ts#renderSite]
+
+  - id: "6.10.3"
+    name: Status labels
+    description: |
+      Renames how statuses read on the site.
+      Given `almanac.yaml` has `in-progress: In beta` under `labels:` in `site:`
+      When the site is built or served
+      Then everywhere the site names that status uses "In beta", as in "iOS · In beta" in a panel, "In beta on iOS" under a behaviour and "(in beta)" on a variant, and search finds it by that label
+      And statuses without a label keep their defaults: "Coming soon" for planned, "In progress", "Available" for shipped, "Being retired" for deprecated and "Removed"
+    source: [packages/site/src/options.ts#DEFAULT_LABELS, packages/site/src/options.ts#statusLabel, packages/site/src/search.ts#searchDocuments]
+
+  - id: "6.10.4"
+    name: Custom statuses
+    description: |
+      Gives an almanac's own statuses a readable name.
+      Given the almanac defines a status of its own, such as `beta-test`, with no label for it
+      When the site shows that status
+      Then it reads "Beta test", capitalised with hyphens turned to spaces, beside a dashed square
+    source: [packages/site/src/options.ts#statusLabel, packages/site/src/render.ts#statusIcon]
+
+  - id: "6.10.5"
+    name: Values that aren't text
+    description: |
+      Ignores a site option that isn't text.
+      Given an option under `site:` that isn't text, such as `shipped: 7` under `labels:`
+      When the site is built or served
+      Then that option is ignored and its default used
+      But nothing warns about it, in the build or in `almanac lint`
+    source: [packages/site/src/options.ts#siteOptions, packages/schema/src/files.ts#configSchema]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "6.10.1"
+      - added: "6.10.2"
+      - added: "6.10.3"
+      - added: "6.10.4"
+      - added: "6.10.5"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

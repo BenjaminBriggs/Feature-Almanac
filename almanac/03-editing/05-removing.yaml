@@ -1,0 +1,123 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "3.5"
+name: Removing
+description: Tombstone an entity with a reason instead of deleting it.
+owner: ben
+status: shipped
+platforms: [cli]
+next_behaviour: 10
+
+behaviours:
+  - id: "3.5.1"
+    name: Tombstone a behaviour
+    description: |
+      Marks a behaviour removed with a reason, keeping its ID and text.
+      Given behaviour 1.1.2 Bold formatting is live
+      When the user runs `almanac remove 1.1.2 --reason "Replaced by the formatting toolbar in 2.4."`
+      Then it prints "Removed 1.1.2 Bold formatting (01-editing/01-markdown-editor.yaml)"
+      And the behaviour stays in the file with `status: removed` and that `removed_reason`
+      And the changelog says "Removed Bold formatting." and keeps the reason with the change
+    source: [packages/core/src/mutations.ts#removeEntity, packages/cli/src/commands/write.ts#registerWriteCommands]
+
+  - id: "3.5.2"
+    name: Removed entities stay readable
+    description: |
+      A removed entity drops out of lists but can still be shown.
+      Given behaviour 1.1.2 was removed
+      When the user runs `almanac show 1.1.2`
+      Then it prints "# 1.1.2 Bold formatting (removed)" with "- Removed: Replaced by the formatting toolbar in 2.4."
+      But `almanac list` leaves it out unless `--include-removed` is given
+    source: [packages/core/src/render.ts#renderBehaviour, packages/core/src/query.ts#listEntities]
+
+  - id: "3.5.3"
+    name: A reason is required
+    description: |
+      Refuses to remove anything without a reason.
+      Scenario: No reason
+        When the user runs `almanac remove 1.1.2`
+        Then it stops with "error: required option '--reason <text>' not specified" and exits 2
+      Scenario: A blank reason
+        When the user runs `almanac remove 1.1.2 --reason " "`
+        Then it stops with "error: A reason is required (--reason)" and exits 2
+    source: [packages/core/src/mutations.ts#removeEntity, packages/cli/src/commands/write.ts#registerWriteCommands]
+
+  - id: "3.5.4"
+    name: Already removed
+    description: |
+      Refuses to remove something twice.
+      Given behaviour 1.1.2 is removed
+      When the user runs `almanac remove 1.1.2 --reason "Gone."`
+      Then it stops with "error: 1.1.2 is already removed" and exits 4
+    source: [packages/core/src/mutations.ts#removeEntity, packages/core/src/mutations.ts#isRemoved]
+
+  - id: "3.5.5"
+    name: Remove a variant
+    description: |
+      Removing a variant removes the behaviour on that variant's platforms only.
+      Given behaviour 1.1.1 Bold formatting is shipped on iOS and Android and has an iOS variant
+      When the user runs `almanac remove 1.1.1@ios --reason "iOS uses the system text menu."`
+      Then it prints "Removed 1.1.1@ios (01-editing/01-markdown-editor.yaml)"
+      And the behaviour is removed on iOS and still shipped on Android
+      And the changelog says "Removed Bold formatting (iOS)."
+    source: [packages/core/src/mutations.ts#removeEntity]
+
+  - id: "3.5.6"
+    name: Remove on one platform
+    description: |
+      Removes a behaviour on one platform with `set`, keeping it on the others.
+      Given behaviour 1.1.3 is shipped on iOS and Android
+      When the user runs `almanac set 1.1.3 status.android=removed removed_reason="Dropped on Android."`
+      Then the behaviour is removed on Android and still shipped on iOS
+      And it records the reason
+    source: [packages/core/src/mutations.ts#setValues, packages/core/src/mutations.ts#withPlatform]
+
+  - id: "3.5.7"
+    name: Full removal goes through remove
+    description: |
+      Points `set` users to `remove` to remove something everywhere.
+      When the user runs `almanac set 1.1.2 status=removed`
+      Then it stops with "error: To remove 1.1.2, use almanac remove 1.1.2 --reason <why>" and exits 2
+    source: [packages/core/src/mutations.ts#setValues]
+
+  - id: "3.5.8"
+    name: Remove a feature
+    description: |
+      Tombstones a feature, and its behaviours with it.
+      Given feature 1.1 Markdown editor has live behaviours
+      When the user runs `almanac remove 1.1 --reason "Replaced by the new editor."`
+      Then the feature gets `status: removed` and that reason
+      And its changelog says "Removed Markdown editor." with the reason
+      And its behaviours count as removed too, and `almanac lint` warns (ALM-W018) about any that still declare their own status
+    source: [packages/core/src/mutations.ts#removeEntity]
+
+  - id: "3.5.9"
+    name: Categories go only once their features have
+    description: |
+      Removes a category only when none of its features are live.
+      Scenario: Live features remain
+        Given category 1 still has live features 1.1, 1.2 and 1.3
+        When the user runs `almanac remove 1 --reason "Merged into Sync."`
+        Then it stops with "error: Category 1 still has live features (1.1, 1.2, 1.3); remove or move them first" and exits 4
+      Scenario: Every feature is removed or moved
+        Given category 1 has no live features
+        When the user runs `almanac remove 1 --reason "Merged into Sync."`
+        Then the category gets `status: removed` and that reason
+    source: [packages/core/src/mutations.ts#removeEntity]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "3.5.1"
+      - added: "3.5.2"
+      - added: "3.5.3"
+      - added: "3.5.4"
+      - added: "3.5.5"
+      - added: "3.5.6"
+      - added: "3.5.7"
+      - added: "3.5.8"
+      - added: "3.5.9"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

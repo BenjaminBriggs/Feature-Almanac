@@ -1,0 +1,103 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "7.4"
+name: Recording reviews
+description: Apply a decisions file, skipping decisions on text that has since changed.
+owner: ben
+status: shipped
+platforms: [cli]
+next_behaviour: 8
+
+behaviours:
+  - id: "7.4.1"
+    name: Record a decisions file
+    description: |
+      Stores each decision from a reviewer's file on its behaviour.
+      Given a decisions file downloaded from the website, such as "review-fa-sam-price-2026-10-20.json"
+      When the user runs `almanac apply review-fa-sam-price-2026-10-20.json`
+      Then each decision is stored on its behaviour with the verdict, the reviewer's name, the day, the reason for a rejection and the fingerprint of the text the reviewer saw
+      And it prints, for example, "Recorded 41 reviews" and "Wrote 6 files"
+      And the review shows in `almanac show`, in `almanac list --review` and on the site once it is rebuilt
+    source: [packages/cli/src/commands/apply.ts#registerApplyCommand, packages/core/src/patch.ts#planPatch, packages/core/src/mutations.ts#reviewBehaviour]
+
+  - id: "7.4.2"
+    name: Skip decisions on changed text
+    description: |
+      Leaves out a decision on a behaviour that changed after the reviewer saw it, and records the rest.
+      Given the reviewer decided FA-1.2.3, and its name, description or variants changed before the file is applied
+      When the user runs `almanac apply` with the decisions file
+      Then that decision is not recorded and the command prints "Skipped: FA-1.2.3 changed after it was reviewed; review it again"
+      And every other decision in the file is recorded
+      And the command still succeeds, with exit code 0
+    source: [packages/core/src/patch.ts#planPatch, packages/core/src/mutations.ts#reviewBehaviour, packages/core/src/mutations.ts#StaleReviewError, packages/cli/src/commands/apply.ts#registerApplyCommand]
+
+  - id: "7.4.3"
+    name: Latest review wins
+    description: |
+      A new decision on a behaviour replaces its earlier review.
+      Given Sam Price rejected a behaviour and the review is recorded
+      When the user applies a later file in which Alex Kim approves the same text
+      Then the behaviour's review reads approved by Alex Kim, and the rejection and its reason are gone from the almanac
+    source: [packages/core/src/mutations.ts#reviewBehaviour]
+
+  - id: "7.4.4"
+    name: No changelog entry
+    description: |
+      Recording reviews leaves the behaviours and their history untouched.
+      Given a decisions file
+      When the user runs `almanac apply` with it
+      Then only each behaviour's review is written
+      But no changelog entry is added, and no behaviour's name, description, status or platforms change
+    source: [packages/core/src/patch.ts#planPatch, packages/core/src/mutations.ts#reviewBehaviour]
+
+  - id: "7.4.5"
+    name: Reviews follow moved behaviours
+    description: |
+      A decision made under a behaviour's old ID is recorded under its new one.
+      Given the reviewer decided FA-1.1.2, which has since moved to FA-2.1.1 without its text changing
+      When the user applies the decisions file
+      Then the review is recorded on FA-2.1.1
+    source: [packages/core/src/mutations.ts#reviewBehaviour]
+
+  - id: "7.4.6"
+    name: Invalid decisions stop the file
+    description: |
+      A decision the almanac can't record stops the whole file, and nothing is written.
+      Given a decisions file with one decision that can't be recorded
+      When the user runs `almanac apply` with it
+      Then nothing is written and the command fails with an error naming the problem and exit code 2, or 3 for an ID that doesn't exist
+      And a rejection with no reason fails with "a rejection needs a note saying why"
+      And an empty reviewer name fails with "Too small: expected string to have >=1 characters", and a name of only spaces with "A review needs the name of the person who made it"
+      And a decision on a feature or variant fails with, for example, "Only behaviours are reviewed; 1.2 is a feature"
+      And an ID that doesn't exist fails with, for example, "Behaviour 1.2.9 not found"
+    source: [packages/schema/src/files.ts#patchReviewOpSchema, packages/core/src/mutations.ts#reviewBehaviour, packages/core/src/patch.ts#planPatch]
+
+  - id: "7.4.7"
+    name: Preview the reviews
+    description: |
+      Shows what a decisions file would record without writing anything.
+      Given a decisions file
+      When the user runs `almanac --dry-run apply` with it
+      Then the review lines that would be added to each feature file are printed as a diff
+      And any "Skipped: …" lines for changed behaviours are printed too
+      But no file is written
+    source: [packages/cli/src/commands/apply.ts#registerApplyCommand]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "7.4.6"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "7.4.1"
+      - added: "7.4.2"
+      - added: "7.4.3"
+      - added: "7.4.4"
+      - added: "7.4.5"
+      - added: "7.4.6"
+      - added: "7.4.7"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

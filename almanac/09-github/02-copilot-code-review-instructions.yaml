@@ -1,0 +1,136 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "9.2"
+name: Copilot code review instructions
+description: Copilot's pull request reviews check changes against the almanac.
+owner: ben
+status: shipped
+platforms: [copilot]
+next_behaviour: 12
+
+behaviours:
+  - id: "9.2.1"
+    name: Installed with a placeholder for the source globs
+    description: |
+      The instructions file arrives covering only the almanac until the user names their source files.
+      Given the user is in the root of their app's repository
+      When the user runs `almanac agent install --tool copilot --ci`
+      Then `.github/instructions/almanac.instructions.md` is written with `applyTo: "YOUR_SOURCE_GLOBS,almanac/**"`
+      And the install prints "3. In .github/instructions/almanac.instructions.md, replace YOUR_SOURCE_GLOBS with the globs of your app's source, such as src/**."
+      But until the placeholder is replaced, Copilot code review uses the instructions only for files in `almanac/`
+    source: [packages/cli/assets/agent/github/almanac.instructions.md, packages/cli/src/commands/agent.ts#checksNote, packages/cli/src/commands/agent.ts#SOURCE_GLOBS]
+
+  - id: "9.2.2"
+    name: Reinstalling keeps the source globs
+    description: |
+      Installing again doesn't reset the globs the user set.
+      Given the user has replaced `YOUR_SOURCE_GLOBS` in the instructions file's `applyTo` line
+      When the user runs `almanac agent install --tool copilot --ci` again
+      Then the file's `applyTo` line is kept as the user wrote it
+      And the rest of the file is brought up to date with the template
+      But the step asking to replace `YOUR_SOURCE_GLOBS` is no longer printed
+    source: [packages/cli/src/commands/agent.ts#keepApplyTo, packages/cli/src/commands/agent.ts#checksNote]
+
+  - id: "9.2.3"
+    name: Flags code that makes a behaviour untrue
+    description: |
+      Copilot comments when a code change alters documented behaviour without updating the almanac.
+      Given Copilot is reviewing a pull request in a repository with the instructions installed
+      When a changed source file alters a trigger, timing, limit, user-visible wording, platform difference or status that a behaviour describes, and the pull request doesn't update that behaviour
+      Then Copilot comments on the changed line, citing the behaviour's ID and name
+      And it quotes the part that's no longer true and suggests new wording
+    source: [packages/cli/assets/agent/github/almanac.instructions.md]
+
+  - id: "9.2.4"
+    name: Flags stale citations
+    description: |
+      Copilot points out a behaviour that still cites a file or symbol the pull request renamed or moved.
+      Given Copilot is reviewing a pull request in a repository with the instructions installed
+      When the pull request renames or moves a cited file or symbol and the behaviour's `source` still points at the old one
+      Then Copilot flags the stale citation by behaviour ID
+    source: [packages/cli/assets/agent/github/almanac.instructions.md]
+
+  - id: "9.2.5"
+    name: Asks about removed behaviour
+    description: |
+      Copilot asks the author about behaviour a pull request removes instead of suggesting its removal.
+      Given Copilot is reviewing a pull request in a repository with the instructions installed
+      When the pull request removes something a behaviour describes
+      Then Copilot says so and cites the behaviour ID
+      But it asks the author rather than suggesting the YAML, because removal leaves a tombstone and is the author's decision
+    source: [packages/cli/assets/agent/github/almanac.instructions.md]
+
+  - id: "9.2.6"
+    name: Suggests behaviours for new things
+    description: |
+      Copilot suggests a behaviour for something new a user can observe.
+      Given Copilot is reviewing a pull request in a repository with the instructions installed
+      When the pull request adds something a user can observe that no behaviour covers
+      Then Copilot suggests adding a behaviour to the feature it belongs to
+    source: [packages/cli/assets/agent/github/almanac.instructions.md]
+
+  - id: "9.2.7"
+    name: Quiet on refactors
+    description: |
+      Copilot doesn't comment on changes that leave every behaviour true.
+      Given Copilot is reviewing a pull request in a repository with the instructions installed
+      When the change is a refactor, a rename of internal names or test-only
+      Then Copilot makes no almanac comment about it
+    source: [packages/cli/assets/agent/github/almanac.instructions.md]
+
+  - id: "9.2.8"
+    name: Checks almanac edits against the code
+    description: |
+      Copilot flags an edited behaviour that doesn't match the code the pull request leaves behind.
+      Given Copilot is reviewing a pull request that edits behaviours in `almanac/`
+      When an edited description claims something the code doesn't do, or misses a condition, limit or platform difference the code has
+      Then Copilot flags it, citing the behaviour ID and the line of code
+    source: [packages/cli/assets/agent/github/almanac.instructions.md]
+
+  - id: "9.2.9"
+    name: Flags broken sources and wrong statuses
+    description: |
+      Copilot flags an edited behaviour whose citation or status the code contradicts.
+      Given Copilot is reviewing a pull request that edits behaviours in `almanac/`
+      When an edited behaviour's `source` path or `#symbol` doesn't exist, or its status contradicts the code, such as `shipped` for something behind a disabled flag
+      Then Copilot flags it by behaviour ID
+    source: [packages/cli/assets/agent/github/almanac.instructions.md]
+
+  - id: "9.2.10"
+    name: Flags changed or reused IDs
+    description: |
+      Copilot objects when a pull request changes or reuses a behaviour ID.
+      Given Copilot is reviewing a pull request that edits `almanac/`
+      When an ID changed or was reused
+      Then Copilot flags it, because IDs are permanent and a removed behaviour stays as a tombstone with `status: removed` and a `removed_reason`
+    source: [packages/cli/assets/agent/github/almanac.instructions.md]
+
+  - id: "9.2.11"
+    name: Points the author at the update workflow
+    description: |
+      Copilot's almanac comments suggest the change for the author to make with the CLI.
+      Given Copilot comments about the almanac on a pull request
+      When it suggests a change to a behaviour
+      Then the comment cites the behaviour ID, such as "`PD-3.3.2` (Bold formatting) says … but `Editor.swift#toggleBold` now …", and suggests the corrected description when it can
+      And it leaves the author to apply it with `/almanac-update` or `almanac apply`
+      But it doesn't suggest editing the almanac YAML by hand
+    source: [packages/cli/assets/agent/github/almanac.instructions.md]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "9.2.1"
+      - added: "9.2.2"
+      - added: "9.2.3"
+      - added: "9.2.4"
+      - added: "9.2.5"
+      - added: "9.2.6"
+      - added: "9.2.7"
+      - added: "9.2.8"
+      - added: "9.2.9"
+      - added: "9.2.10"
+      - added: "9.2.11"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

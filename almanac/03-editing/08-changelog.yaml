@@ -1,0 +1,123 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "3.8"
+name: Changelog
+description: Every write is recorded on the feature it touches, with an optional ticket.
+owner: ben
+status: shipped
+platforms: [cli]
+next_behaviour: 9
+
+behaviours:
+  - id: "3.8.1"
+    name: Every edit is recorded
+    description: |
+      Each write to a feature, behaviour or variant adds a dated entry to the top of the feature's changelog.
+      Given behaviour 1.1.2 Bold formatting in feature 1.1
+      When the user runs a write command such as `almanac set 1.1.2 tags=core`
+      Then the feature's changelog gets a new first entry dated today, as YYYY-MM-DD
+      And its summary is generated, for example "Set tags → core on Bold formatting."
+      And it lists the change: `added`, `modified` or `removed` with the ID, `moved` with from and to, or `feature: added`, `modified` or `removed`
+      But recorded reviews, `relink`, `fmt`, `lint --fix` and a patch with `"changelog": "none"` add no entry
+    source: [packages/core/src/mutations.ts#prependChangelog, packages/core/src/mutations.ts#note]
+
+  - id: "3.8.2"
+    name: Own summary
+    description: |
+      Replaces the generated changelog summary with the user's own.
+      When the user runs `almanac set 1.1 owner=sam --summary "Handed to Sam."`
+      Then the new changelog entry's summary is "Handed to Sam."
+      And `describe`, `rename`, `remove` and `mv` take `--summary` the same way
+      But the `add` commands don't take `--summary`
+    source: [packages/cli/src/commands/write.ts#edit, packages/core/src/mutations.ts#note]
+
+  - id: "3.8.3"
+    name: Category changes aren't recorded
+    description: |
+      Adding, describing, renaming or removing a category writes no changelog entry.
+      Given category 1 Editing
+      When the user runs `almanac rename 1 --name "Writing"`
+      Then no feature's changelog changes
+      And the category has no changelog of its own
+    source: [packages/core/src/mutations.ts#addCategory, packages/core/src/mutations.ts#renameEntity, packages/core/src/mutations.ts#removeEntity]
+
+  - id: "3.8.4"
+    name: Add an entry yourself
+    description: |
+      Records a change no command records, such as a behaviour checked against the code.
+      When the user runs `almanac changelog add 1.1 --summary "Verified against code." --change modified:1.1.5 --change modified:EX-1.1.6 --release 2.6 --ticket PR-7 --author ben --platforms ios`
+      Then it prints "Added a changelog entry to 1.1 Editor (01-editing/01-editor.yaml)"
+      And the new first entry has that summary, version 2.6, ticket PR-7, author ben and platform ios
+      And it lists modified 1.1.5 and 1.1.6, with the product's prefix dropped
+      And `--change` also takes `added:`, `removed:`, `moved:FROM:TO` and `feature:added`, `feature:modified` or `feature:removed`
+    source: [packages/core/src/mutations.ts#addChangelogEntry, packages/core/src/mutations.ts#parseChange, packages/cli/src/commands/write.ts#registerWriteCommands]
+
+  - id: "3.8.5"
+    name: Entries need a change that exists
+    description: |
+      Refuses an entry with no change, a malformed change or an ID that doesn't exist.
+      Scenario: No change
+        When the user runs `almanac changelog add 1.1 --summary "Verified."`
+        Then it stops with "error: At least one change is required (--change modified:N.M.K)" and exits 2
+      Scenario: A malformed change
+        When the user runs `almanac changelog add 1.1 --summary "Verified." --change frob:1.1.5`
+        Then it stops with `error: "frob:1.1.5" is not kind:ref (added, modified, removed), moved:from:to or feature:added|modified|removed` and exits 2
+      Scenario: An ID that doesn't exist
+        When the user runs `almanac changelog add 1.1 --summary "Verified." --change modified:9.9.9`
+        Then it prints "ALM-E008  Changelog modified 9.9.9 does not resolve to a behaviour or variant"
+        And it stops with "error: Writing this changelog entry would introduce lint errors; nothing was written" and exits 1
+    source: [packages/core/src/mutations.ts#addChangelogEntry, packages/core/src/mutations.ts#parseChange, packages/cli/src/commands/write.ts#commitEdit]
+
+  - id: "3.8.6"
+    name: One entry per feature from a patch
+    description: |
+      A patch writes one changelog entry for each feature it touches, however many operations touched it.
+      Given a patch with `"summary": "Initial almanac."`, `"ticket": "PR-42"` and four operations on feature 1.1
+      When the user applies it with `"changelog": "auto"`, the default
+      Then feature 1.1 gets one entry, "Initial almanac.", listing each change once
+      And the entry carries the patch's `ticket`, and its `version` and `author` when given
+    source: [packages/core/src/patch.ts#planPatch]
+
+  - id: "3.8.7"
+    name: Generated summary for a patch
+    description: |
+      Without a summary, a patch's entry sums up what it did.
+      Given a patch with no `summary` that adds behaviours Under, Strike, Code and Quote to feature 1.1 Editor and sets its tags
+      When the user applies it
+      Then the entry's summary is "Added Under, Strike, Code and 1 more. Set tags → core on Editor."
+      And a feature the patch added reads, for example, "Added Conflicts with 1 behaviour."
+    source: [packages/core/src/patch.ts#autoSummary]
+
+  - id: "3.8.8"
+    name: Choosing a patch's changelog
+    description: |
+      A patch can write no changelog entries, or exactly the ones it lists.
+      Scenario: None
+        When the user applies a patch with `"changelog": "none"`
+        Then no changelog entry is written
+      Scenario: A list
+        When the user applies a patch with `"changelog": [{"feature": "2.2", "summary": "Verified against code.", "changes": [{"modified": "2.2.2"}]}]`
+        Then feature 2.2 gets exactly that entry, dated today unless it gives a `date`
+        And features the operations touched get no other entry
+        And an entry for a feature that doesn't exist stops the patch with "error: Changelog entry names feature 9.9, which does not exist" and exit 2
+    source: [packages/core/src/patch.ts#planPatch, packages/schema/src/files.ts#patchChangelogEntrySchema]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "3.8.1"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "3.8.1"
+      - added: "3.8.2"
+      - added: "3.8.3"
+      - added: "3.8.4"
+      - added: "3.8.5"
+      - added: "3.8.6"
+      - added: "3.8.7"
+      - added: "3.8.8"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

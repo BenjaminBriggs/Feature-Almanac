@@ -1,0 +1,98 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "4.4"
+name: Behaviour formats
+description: Gherkin steps with a summary line by default, prose when asked for.
+owner: ben
+status: shipped
+platforms: [cli]
+next_behaviour: 8
+
+behaviours:
+  - id: "4.4.1"
+    name: Gherkin by default
+    description: |
+      Reads a behaviour with no `format` as a summary line followed by Given/When/Then steps.
+      Given a behaviour with no `format` field
+      When the user runs `almanac show 1.1.1`
+      Then its description is shown as written, with "Format: gherkin" in its details
+      And `almanac show 1.1.1 --json` gives "format": "gherkin" and the parsed steps in `gherkin`
+    source: [packages/core/src/compile.ts#Compiler.processBehaviour, packages/core/src/config.ts#resolveConfig, packages/core/src/render.ts#behaviourBody]
+
+  - id: "4.4.2"
+    name: Summary line
+    description: |
+      Takes the plain text above the first step as the behaviour's one-line summary.
+      Given a behaviour whose description starts "Saves the note a second after the user stops typing." above its first step
+      When the user runs `almanac show 1.1.2 --json`
+      Then `summary` is "Saves the note a second after the user stops typing."
+      And `gherkin` holds one scenario whose steps each have a `keyword` and `text`
+      And a summary written over several lines is joined into one, with spaces
+    source: [packages/core/src/gherkin.ts#parseGherkin]
+
+  - id: "4.4.3"
+    name: Named scenarios
+    description: |
+      Splits a description into named scenarios at each scenario line.
+      Given a behaviour with a summary line, then "Scenario: Keyboard" and "Scenario: Toolbar", each with its own steps
+      When the user runs `almanac show 1.1.4 --json`
+      Then `gherkin` holds two scenarios, named "Keyboard" and "Toolbar"
+      And `Example:`, `Scenario Outline:` and `Rule:` lines work as Gherkin defines them
+    source: [packages/core/src/gherkin.ts#parseGherkin]
+
+  - id: "4.4.4"
+    name: Steps missing
+    description: |
+      Warns when a Gherkin description has no Given/When/Then steps.
+      Given a behaviour with no `format` whose description is plain text
+      When the user runs `almanac lint`
+      Then lint warns ALM-W015, "Behaviour 1.1.1 has format gherkin, but no Given/When/Then steps found (gherkin is the default; set format: prose for plain text)"
+      And the hint in brackets is left out when the behaviour sets `format: gherkin` itself
+      And a step must start with a capitalised keyword (Given, When, Then, And, But or *), so a lowercase "given" doesn't count
+    source: [packages/core/src/gherkin.ts#parseGherkin, packages/core/src/compile.ts#Compiler.processBehaviour]
+
+  - id: "4.4.5"
+    name: Gherkin that doesn't parse
+    description: |
+      Warns when the Gherkin parser rejects a description.
+      Given a behaviour whose steps open a `"""` doc string and never close it
+      When the user runs `almanac lint`
+      Then lint warns ALM-W015, "Behaviour 1.1.7 has format gherkin, but Parser errors: (gherkin is the default; set format: prose for plain text)", without saying what or where the problem is
+      And `almanac show 1.1.7 --json` gives no `summary` or `gherkin` for it
+    source: [packages/core/src/gherkin.ts#parseGherkin, packages/core/src/compile.ts#Compiler.processBehaviour]
+
+  - id: "4.4.6"
+    name: Prose
+    description: |
+      Leaves a description marked `format: prose` as plain text.
+      Given a behaviour with `format: prose`
+      When the user runs `almanac lint`
+      Then its description isn't parsed and never gets ALM-W015
+      And `almanac show` lists no format in its details, and its JSON has no `summary` or `gherkin`
+    source: [packages/core/src/compile.ts#Compiler.processBehaviour, packages/core/src/render.ts#behaviourBody]
+
+  - id: "4.4.7"
+    name: Allowed formats
+    description: |
+      Accepts prose, gherkin and ears unless almanac.yaml says otherwise.
+      Given a behaviour with `format: markdown`, and no `formats` section in almanac.yaml
+      When the user runs `almanac lint`
+      Then lint reports error ALM-E007, `Format "markdown" is not one of prose, gherkin, ears`
+      And `formats.allowed` in almanac.yaml replaces that list, and `formats.default` sets the format of behaviours that don't name one
+      And a behaviour with `format: ears` is accepted but not checked
+    source: [packages/core/src/compile.ts#Compiler.processBehaviour, packages/core/src/config.ts#DEFAULT_FORMATS, packages/core/src/config.ts#resolveConfig]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "4.4.1"
+      - added: "4.4.2"
+      - added: "4.4.3"
+      - added: "4.4.4"
+      - added: "4.4.5"
+      - added: "4.4.6"
+      - added: "4.4.7"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

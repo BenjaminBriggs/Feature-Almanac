@@ -1,0 +1,154 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "2.2"
+name: Show
+description: Print one entity as Markdown, YAML or JSON, resolved for a platform if asked.
+owner: ben
+status: shipped
+platforms: [cli]
+next_behaviour: 12
+
+behaviours:
+  - id: "2.2.1"
+    name: Show a behaviour
+    description: |
+      Prints one behaviour as Markdown, with its status, sources, review and variants.
+      Given behaviour EX-1.1.1 "Bold formatting" has an Android variant
+      When the user runs `almanac show EX-1.1.1`
+      Then it prints the heading "# 1.1.1 Bold formatting", the line "Feature: 1.1 Markdown editor" and the description
+      And a list follows with its status, such as "Status: shipped (iOS) · in-progress (Android)", then its platforms and since when they differ from the feature's, its format unless it is prose, and whichever of flag, tags, sources, former IDs, removal reason and review it has
+      And each variant comes last, as "**Android** (in-progress): …", with the status only when the variant sets its own
+      And a variant that replaces the text reads "**Android**, instead of the above: …"
+    source: [packages/cli/src/commands/read.ts#renderTarget, packages/core/src/render.ts#renderBehaviour]
+
+  - id: "2.2.2"
+    name: Show a feature
+    description: |
+      Prints a feature with its details and all its behaviours.
+      Given feature 1.1 "Markdown editor"
+      When the user runs `almanac show 1.1`
+      Then it prints "# 1.1 Markdown editor", the description, and a list with its prefixed ID, its owner such as "Ben Briggs (ben)", status, platforms and file, plus any since, tags, depends on, related, links, former IDs and removal reason
+      And the overview follows, when it has one
+      And a "## Behaviours" section shows every behaviour, with removed ones marked "(removed)", or "None yet."
+    source: [packages/core/src/render.ts#renderFeature]
+
+  - id: "2.2.3"
+    name: Show a category
+    description: |
+      Prints a category with a one-line entry for each feature.
+      Given category 1 "Editing"
+      When the user runs `almanac show 1`
+      Then it prints "# 1 Editing", the description, the owner and the file
+      And a "## Features" section lists each feature as "**1.1 Markdown editor**: <description> (<status>)", or "None."
+    source: [packages/core/src/render.ts#renderCategory]
+
+  - id: "2.2.4"
+    name: Show a variant
+    description: |
+      Prints how a behaviour reads on one platform.
+      Given behaviour 1.1.1 has an Android variant
+      When the user runs `almanac show 1.1.1@android`
+      Then it prints "# 1.1.1@android Bold formatting (Android)", the behaviour as it reads on Android, its Android status and a line such as "Variant covers: Android (append)"
+      And `almanac show 1.1.1@ios` fails with "Behaviour 1.1.1 has no variant for ios" and exit code 3 when there is no iOS variant
+    source: [packages/core/src/render.ts#renderVariant, packages/core/src/query.ts#lookup]
+
+  - id: "2.2.5"
+    name: Resolve for a platform
+    description: |
+      Shows an entity as it is on one platform.
+      Given feature 1.1 has a behaviour with an Android variant
+      When the user runs `almanac show 1.1 --platform android`
+      Then each behaviour reads as it does on Android, with its variant's text, and only its Android status is shown
+      And behaviours that aren't on Android are left out
+      And a feature or behaviour shown directly that isn't on Android says "Not available on Android."
+      And an unknown platform fails with "Unknown platform "mac"; known: …" and exit code 2
+    source: [packages/cli/src/commands/read.ts#showData, packages/core/src/render.ts#renderFeature]
+
+  - id: "2.2.6"
+    name: Accepted references
+    description: |
+      Accepts any ID or reference, and says why one is wrong.
+      Given an almanac with the prefix EX
+      When the user runs `almanac show` with `1`, `1.2`, `1.2.3`, `1.2.3@android` or `EX-1.2.3`
+      Then that category, feature, behaviour or variant is shown
+      And an ID that doesn't exist fails with a message such as "Feature 9.9 not found" and exit code 3
+      And another product's prefix fails with "XX-1 belongs to another product (prefix XX)" and exit code 3
+      And text that isn't a reference fails with ""foo" is not a valid reference" and exit code 2
+    source: [packages/core/src/query.ts#lookup, packages/schema/src/refs.ts#parseRef]
+
+  - id: "2.2.7"
+    name: Old IDs still work
+    description: |
+      Shows a moved entity under its new ID and says what that ID is.
+      Given behaviour 1.2.1 has moved and is now 2.1.1
+      When the user runs `almanac show 1.2.1`
+      Then behaviour 2.1.1 is shown
+      And the note "note: 1.2.1 is now 2.1.1" is printed on stderr
+      And with `--json`, the move is in `redirects` as `{ "from": "1.2.1", "to": "2.1.1" }`
+    source: [packages/core/src/query.ts#lookup, packages/cli/src/context.ts#Context]
+
+  - id: "2.2.8"
+    name: With changelog
+    description: |
+      Adds the history of a feature or behaviour.
+      Given feature 1.1 has changelog entries
+      When the user runs `almanac show 1.1 --with-changelog`
+      Then a "## Changelog" section lists each entry as "- <date> (<version>, <ticket>, <platforms>): <summary>", leaving out what an entry doesn't have, with its changes below it
+      And for a behaviour, `--with-changelog` adds a "## History" section with only the entries in its feature's changelog that mention it under its current or former ID, or "No changelog entries mention it."
+      But entries in the changelog of a feature the behaviour has moved out of aren't shown
+    source: [packages/core/src/render.ts#renderFeature, packages/core/src/render.ts#behaviourHistory]
+
+  - id: "2.2.9"
+    name: With related features
+    description: |
+      Adds the features a feature depends on or is related to.
+      Given feature 1.1 lists 1.2 under `depends_on` and 2.1 under `related`
+      When the user runs `almanac show 1.1 --with-related`
+      Then a "## Related features" section lists "**1.2 Sync**: …" and "**2.1 Export**: …" with their descriptions
+      And a feature that has moved is listed under its new ID
+    source: [packages/cli/src/commands/read.ts#relatedFeatures, packages/core/src/render.ts#renderFeature]
+
+  - id: "2.2.10"
+    name: YAML as stored
+    description: |
+      Prints an entity exactly as it is stored.
+      Given an almanac
+      When the user runs `almanac show 1.1.1 --format yaml`
+      Then the behaviour's entry is printed as it appears in its feature file
+      And a feature or category prints its whole file, comments included
+    source: [packages/core/src/render.ts#renderSource]
+
+  - id: "2.2.11"
+    name: JSON
+    description: |
+      Prints the compiled entity as JSON.
+      Given an almanac
+      When the user runs `almanac show 1.1.1 --format json`
+      Then the behaviour is printed as JSON, with its status per platform, its parsed Given/When/Then steps, its summary line, its sources and its review
+      And `almanac --json show 1.1.1` puts the same entity in the JSON envelope as `data.entity`, with its `kind`, plus `history` or `related` when those options are used
+      And `--format` takes only `markdown`, `yaml` or `json`; anything else fails with exit code 2
+    source: [packages/cli/src/commands/read.ts#registerReadCommands, packages/cli/src/commands/read.ts#showData]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "2.2.1"
+      - modified: "2.2.8"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "2.2.1"
+      - added: "2.2.2"
+      - added: "2.2.3"
+      - added: "2.2.4"
+      - added: "2.2.5"
+      - added: "2.2.6"
+      - added: "2.2.7"
+      - added: "2.2.8"
+      - added: "2.2.9"
+      - added: "2.2.10"
+      - added: "2.2.11"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

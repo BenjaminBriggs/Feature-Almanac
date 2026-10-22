@@ -1,0 +1,80 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "1.2"
+name: Find the almanac
+description: Commands locate the almanac from any folder in the repository.
+owner: ben
+status: shipped
+platforms: [cli]
+next_behaviour: 6
+
+behaviours:
+  - id: "1.2.1"
+    name: Search upwards
+    description: |
+      Finds the almanac from any folder inside the repository.
+      Given a repository whose almanac is in `almanac/`
+      When the user runs a command such as `almanac lint` from a subfolder like `src/editor`
+      Then the command uses the almanac in the nearest folder above that has an `almanac.yaml` or an `almanac/almanac.yaml`, looking as far up as the top of the disk
+      And a folder's own `almanac.yaml` wins over an `almanac/almanac.yaml` in the same folder
+    source: [packages/core/src/root.ts#findRoot, packages/cli/src/context.ts#Context]
+
+  - id: "1.2.2"
+    name: Point at it with --root
+    description: |
+      Uses the almanac folder named by --root without searching.
+      Given the almanac is in `docs/almanac`
+      When the user runs `almanac --root docs/almanac list`
+      Then that folder is used, with the path taken relative to the current folder
+      And the folder must hold `almanac.yaml` itself: `--root` pointing at a repository that holds `almanac/` fails with "No almanac.yaml in <path>" and exit code 2
+    source: [packages/core/src/root.ts#findRoot]
+
+  - id: "1.2.3"
+    name: ALMANAC_ROOT
+    description: |
+      Uses the almanac folder named by the ALMANAC_ROOT environment variable.
+      Given `ALMANAC_ROOT` is set to an almanac folder
+      When the user runs a command without `--root`
+      Then that folder is used without searching
+      And `--root` wins when both are given
+      And a folder without `almanac.yaml` fails with "No almanac.yaml in <path>" and exit code 2
+      But an empty `ALMANAC_ROOT` is ignored, and the search upwards happens as usual
+    source: [packages/core/src/root.ts#findRoot, packages/cli/src/io.ts#nodeIo]
+
+  - id: "1.2.4"
+    name: No almanac found
+    description: |
+      Says how to start when there is no almanac.
+      Given no folder from the current one upwards has an `almanac.yaml` or an `almanac/almanac.yaml`
+      When the user runs a command such as `almanac list`
+      Then it fails with "No almanac.yaml found from <folder> upwards; run almanac init" and exit code 2
+    source: [packages/core/src/root.ts#findRoot, packages/cli/src/context.ts#EXIT]
+
+  - id: "1.2.5"
+    name: Broken almanac.yaml
+    description: |
+      Stops with the problems when almanac.yaml itself is invalid.
+      Given the almanac's `almanac.yaml` doesn't pass validation, for example it says `almanac: 7`
+      When the user runs `almanac list`, `almanac show`, `almanac build`, `almanac site build`, `almanac relink` or `almanac affected`
+      Then the problems are listed, such as "almanac.yaml:2  error  ALM-E009  almanac: Invalid input: expected 1"
+      And it fails with "almanac.yaml is missing or invalid" and exit code 1
+      And `add`, `set`, `describe`, `rename`, `remove`, `changelog add`, `apply` and `next-id` fail with "almanac.yaml is missing or invalid; fix it before writing" and exit code 4, without listing the problems
+      But `almanac mv` fails as if the entity didn't exist, as in "Behaviour 1.1.1 not found", with exit code 3
+    source: [packages/cli/src/context.ts#Context, packages/core/src/mutations.ts#requireConfig, packages/cli/src/commands/write.ts#registerWriteCommands]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "1.2.5"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "1.2.1"
+      - added: "1.2.2"
+      - added: "1.2.3"
+      - added: "1.2.4"
+      - added: "1.2.5"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

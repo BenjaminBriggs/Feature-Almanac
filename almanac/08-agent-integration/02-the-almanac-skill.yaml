@@ -1,0 +1,153 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "8.2"
+name: The almanac skill
+description: Tells an agent how the almanac works and how to change it.
+owner: ben
+status: shipped
+platforms: [agents]
+next_behaviour: 12
+
+behaviours:
+  - id: "8.2.1"
+    name: Loads when a task needs it
+    description: |
+      The agent picks up the almanac skill on its own when the task involves the almanac.
+      Given the `almanac` skill is installed for the user's agent
+      When the user asks how part of the app works, makes a code change that alters what the app does, cites behaviour IDs in a ticket, pull request or commit, or asks to generate or verify the almanac
+      Then the agent loads the skill without being told to and follows its rules
+    source: [packages/cli/assets/agent/skill/SKILL.md]
+
+  - id: "8.2.2"
+    name: Changes the almanac only through the CLI
+    description: |
+      The agent makes every almanac change with `almanac` commands, never by editing the YAML.
+      Given the skill is loaded
+      When the agent needs to change the almanac
+      Then it uses `almanac apply` for a batch, or `add`, `set`, `describe`, `rename`, `remove`, `mv` or `changelog add` for one change
+      And it previews larger changes with `--dry-run` first
+      But it edits `almanac.yaml` itself (platforms, owners, `code:`) directly
+    source: [packages/cli/assets/agent/skill/SKILL.md]
+
+  - id: "8.2.3"
+    name: Writes behaviours as Given/When/Then
+    description: |
+      Behaviours the agent writes describe one observable outcome as a summary line and Given/When/Then steps.
+      Given the skill is loaded
+      When the agent writes or rewrites a behaviour
+      Then its description is one plain summary line followed by Given, When and Then steps about "the user", with controls named by their visible label and the numbers that matter
+      And it uses prose, marked `format: prose`, only for a behaviour with no trigger
+      And when it rewrites a prose behaviour for any reason, it converts it to Given/When/Then in the same patch, and it adds a summary line to a Gherkin behaviour that lacks one
+      But it never names classes, methods or APIs in the description
+    source: [packages/cli/assets/agent/skill/SKILL.md]
+
+  - id: "8.2.4"
+    name: Cites the code
+    description: |
+      Every behaviour the agent infers from code points at the code that implements it.
+      Given the skill is loaded
+      When the agent adds a behaviour from the code
+      Then the behaviour has a `source` such as `path/to/File.swift#symbol`, relative to `code.path` in `almanac.yaml`
+      But the agent doesn't write a behaviour it can't point at
+    source: [packages/cli/assets/agent/skill/SKILL.md]
+
+  - id: "8.2.5"
+    name: Platform differences as variants
+    description: |
+      The agent records platform differences only where they exist.
+      Given the skill is loaded
+      When a behaviour works differently on some platforms
+      Then the agent adds a variant when the outcome is the same but the mechanics differ
+      And it narrows the behaviour's `platforms` when the outcome differs or exists only on some platforms
+      But a behaviour that's the same everywhere names no platforms
+    source: [packages/cli/assets/agent/skill/SKILL.md]
+
+  - id: "8.2.6"
+    name: Status from the code
+    description: |
+      The agent sets a behaviour's status from what the code shows.
+      Given the skill is loaded
+      When the agent sets a status
+      Then code that ships is `shipped`, and code behind a flag or unfinished is `in-progress`
+      But it uses `planned` only when the user says so
+    source: [packages/cli/assets/agent/skill/SKILL.md]
+
+  - id: "8.2.7"
+    name: Lints after every write
+    description: |
+      The agent checks the almanac after each change and fixes what it broke.
+      Given the skill is loaded
+      When the agent has changed the almanac
+      Then it runs `almanac lint --json`
+      And it fixes every error before it finishes
+    source: [packages/cli/assets/agent/skill/SKILL.md]
+
+  - id: "8.2.8"
+    name: Updates the almanac with the code
+    description: |
+      The agent changes the almanac in the same change as the code that alters what the app does.
+      Given the skill is loaded and the agent is changing the app's code
+      When the change alters something a user can observe
+      Then the agent updates the almanac in the same change, starting from `almanac affected`
+      And it runs `almanac relink` first when the change renames or moves files
+      And it records the pull request or commit as the patch's ticket
+      But a cited file changing alone doesn't make it edit a behaviour: it updates only what a user would notice
+    source: [packages/cli/assets/agent/skill/SKILL.md]
+
+  - id: "8.2.9"
+    name: Removes only what the user confirms
+    description: |
+      The agent doesn't remove behaviours to tidy up.
+      Given the skill is loaded
+      When something the almanac describes looks gone
+      Then the agent removes it only after the user confirms it's gone, with a reason
+      And the removed behaviour stays in the almanac as a tombstone with `status: removed`
+    source: [packages/cli/assets/agent/skill/SKILL.md]
+
+  - id: "8.2.10"
+    name: Leaves reviews to people
+    description: |
+      The agent never approves or rejects behaviours itself.
+      Given the skill is loaded
+      When a behaviour has a reviewer's rejection
+      Then the agent raises the rejection's note with the user rather than resolving it silently
+      But it never writes a review itself, and never edits a behaviour just to make its review current
+    source: [packages/cli/assets/agent/skill/SKILL.md]
+
+  - id: "8.2.11"
+    name: Cites behaviour IDs
+    description: |
+      The agent refers to behaviours by their full IDs in the work it writes.
+      Given the skill is loaded
+      When the agent writes a ticket, a pull request description or a commit message about the app's behaviour
+      Then it cites the behaviours by full ID, such as `PD-1.2.3`
+      And after a move it cites the new ID that `almanac show` reports
+    source: [packages/cli/assets/agent/skill/SKILL.md]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Summary line no longer starts with a step keyword.
+    changes:
+      - modified: "8.2.8"
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "8.2.3"
+      - modified: "8.2.8"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "8.2.1"
+      - added: "8.2.2"
+      - added: "8.2.3"
+      - added: "8.2.4"
+      - added: "8.2.5"
+      - added: "8.2.6"
+      - added: "8.2.7"
+      - added: "8.2.8"
+      - added: "8.2.9"
+      - added: "8.2.10"
+      - added: "8.2.11"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

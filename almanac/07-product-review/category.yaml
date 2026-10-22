@@ -1,0 +1,6 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/category.json
+id: 7
+name: Product review
+description: Letting product people approve or reject behaviours.
+owner: ben
+next_feature: 6

@@ -1,0 +1,164 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "3.2"
+name: Setting fields
+description: Change status, platforms, sources, tags and other fields of any entity.
+owner: ben
+status: shipped
+platforms: [cli]
+next_behaviour: 12
+
+behaviours:
+  - id: "3.2.1"
+    name: Set fields
+    description: |
+      Changes one or more fields of an entity in one command.
+      Given behaviour 1.1.2 Bold formatting cites no source
+      When the user runs `almanac set 1.1.2 source=src/editor.ts#bold,src/toolbar.ts tags=core,formatting`
+      Then it prints "Updated 1.1.2 Bold formatting (01-editing/01-markdown-editor.yaml)"
+      And the behaviour cites both files and has both tags, because list values are comma-separated
+      And the feature's changelog gets "Set source → src/editor.ts#bold, src/toolbar.ts; tags → core, formatting on Bold formatting."
+    source: [packages/core/src/mutations.ts#setValues, packages/core/src/mutations.ts#parseAssignments, packages/cli/src/commands/write.ts#registerWriteCommands]
+
+  - id: "3.2.2"
+    name: An empty value unsets
+    description: |
+      Leaving the value empty removes the field.
+      Given behaviour 1.1.2 has tags
+      When the user runs `almanac set 1.1.2 tags=`
+      Then the behaviour has no tags
+      And the changelog says "Set tags → none on Bold formatting."
+    source: [packages/core/src/mutations.ts#setValues]
+
+  - id: "3.2.3"
+    name: Status on one platform
+    description: |
+      Changes the status or since version on one platform and keeps the others.
+      Given feature 1.1 is `shipped` on iOS and Android
+      When the user runs `almanac set 1.1 status.android=in-progress`
+      Then the feature is shipped on iOS and in progress on Android
+      And setting `status.android=shipped` again turns it back into one `shipped` for every platform
+      But `status=shipped`, with no platform, sets every platform at once
+    source: [packages/core/src/mutations.ts#setValues, packages/core/src/mutations.ts#withPlatform]
+
+  - id: "3.2.4"
+    name: A variant's own status wins
+    description: |
+      Refuses to set a behaviour's status or since on a platform where a variant sets its own.
+      Given variant 1.1.1@android sets its own status
+      When the user runs `almanac set 1.1.1 status.android=shipped`
+      Then it stops with "error: Variant 1.1.1@android sets its own status on android, which overrides the behaviour's; use almanac set 1.1.1@android status.android=…" and exits 2
+      And `since.android` is refused the same way when the variant sets its own since
+    source: [packages/core/src/mutations.ts#checkVariantOverride]
+
+  - id: "3.2.5"
+    name: Set fields on a variant
+    description: |
+      Edits a variant through its ref.
+      Given behaviour 1.1.1 Bold formatting has an Android variant
+      When the user runs `almanac set 1.1.1@android status=in-progress`
+      Then it prints "Updated 1.1.1@android (01-editing/01-markdown-editor.yaml)"
+      And the changelog says "Set status → in-progress on Bold formatting (Android)."
+      And when new `platforms` put another platform first, the printed ref follows it, for example `1.1.1@ios` after `platforms=ios,android`
+    source: [packages/core/src/mutations.ts#setValues]
+
+  - id: "3.2.6"
+    name: Keys each level accepts
+    description: |
+      Each kind of entity takes its own keys, and the error lists them.
+      Given behaviour 1.1.2
+      When the user runs `almanac set 1.1.2 owner=sam`
+      Then it stops with "error: owner is not settable on a behaviour; settable: format, platforms, status, since, source, tags, flag, fields, removed_reason" and exits 2
+      And a category takes only `owner`
+      And a feature takes owner, status, platforms, since, tags, depends_on, related, links, code, assets, fields and removed_reason
+      And a variant takes platforms, mode, status, since, source and removed_reason
+    source: [packages/core/src/mutations.ts#SETTABLE, packages/core/src/mutations.ts#checkKey]
+
+  - id: "3.2.7"
+    name: Fields with their own commands
+    description: |
+      Points to the right command for fields `set` doesn't change.
+      When the user runs `almanac set 1.1.2 name=Bold`
+      Then it stops with "error: name cannot be set: use almanac rename" and exits 2
+      And `description` points to `almanac describe`, `overview` to `almanac describe --overview`, `changelog` to `almanac changelog add`, and `behaviours` and `variants` to `almanac add`
+      And `id` and `formerly` point to `almanac mv`, and the `next_category`, `next_feature` and `next_behaviour` counters say "ID counters are managed by almanac"
+    source: [packages/core/src/mutations.ts#MANAGED, packages/core/src/mutations.ts#checkKey]
+
+  - id: "3.2.8"
+    name: Nothing to change
+    description: |
+      Refuses a change that would leave the entity as it is.
+      Given behaviour 1.1.2 already has the tags core and formatting
+      When the user runs `almanac set 1.1.2 tags=core,formatting`
+      Then it stops with "error: Nothing to change: 1.1.2 already has these values" and exits 4
+      And no changelog entry is written
+    source: [packages/core/src/mutations.ts#setValues]
+
+  - id: "3.2.9"
+    name: Malformed assignments
+    description: |
+      Refuses arguments that aren't a valid key=value.
+      Scenario: Not key=value
+        When the user runs `almanac set 1.1.2 shipped`
+        Then it stops with `error: "shipped" is not key=value` and exits 2
+      Scenario: A key given twice
+        When the user runs `almanac set 1.1.2 tags=a tags=b`
+        Then it stops with "error: tags is given twice" and exits 2
+      Scenario: An unknown platform
+        Given almanac.yaml has no windows platform
+        When the user runs `almanac set 1.1.2 status.windows=shipped`
+        Then it stops with `error: Unknown platform "windows" in status.windows` and exits 2
+      Scenario: A suffix on a key that takes none
+        When the user runs `almanac set 1.1.2 tags.x=core`
+        Then it stops with "error: tags.x: only status.<platform>, since.<platform> and fields.<key> take a suffix" and exits 2
+    source: [packages/core/src/mutations.ts#parseAssignments, packages/core/src/mutations.ts#checkKey, packages/core/src/mutations.ts#setValues]
+
+  - id: "3.2.10"
+    name: JSON and typed values
+    description: |
+      Takes JSON for links and maps, and types custom fields by their definition in almanac.yaml.
+      Scenario: Links
+        When the user runs `almanac set 1.1 links='[{"type":"docs","title":"Guide","url":"https://example.com/guide"}]'`
+        Then the feature has that link
+        And `links=guide` stops with "error: links must be JSON here, got guide" and exits 2
+      Scenario: Custom fields
+        Given almanac.yaml defines the behaviour field `effort` as a number
+        When the user runs `almanac set 1.1.2 fields.effort=3`
+        Then the behaviour's effort is the number 3
+        And `fields.effort=abc` stops with "error: fields.effort must be a number" and exits 2
+        And a bool field takes only `true` or `false` ("must be true or false"), and a list field is comma-separated
+    source: [packages/core/src/mutations.ts#typed, packages/core/src/mutations.ts#checkValue]
+
+  - id: "3.2.11"
+    name: Changes that break the rules are refused
+    description: |
+      Refuses a change that would add lint errors, and writes nothing.
+      Given the almanac uses the default statuses
+      When the user runs `almanac set 1.1 status=bogus`
+      Then it prints `ALM-E007  Status "bogus" is not one of planned, in-progress, shipped, deprecated, removed` with the file and line
+      And it stops with "error: Writing setting these values would introduce lint errors; nothing was written" and exits 1
+      And narrowing a feature's `platforms` while a behaviour still has a status for a dropped platform is refused the same way (ALM-E033)
+    source: [packages/cli/src/commands/write.ts#commitEdit, packages/core/src/transaction.ts#commitChanges]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "3.2.4"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "3.2.1"
+      - added: "3.2.2"
+      - added: "3.2.3"
+      - added: "3.2.4"
+      - added: "3.2.5"
+      - added: "3.2.6"
+      - added: "3.2.7"
+      - added: "3.2.8"
+      - added: "3.2.9"
+      - added: "3.2.10"
+      - added: "3.2.11"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

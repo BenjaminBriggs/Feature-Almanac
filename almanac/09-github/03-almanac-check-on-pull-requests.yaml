@@ -1,0 +1,131 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "9.3"
+name: Almanac check on pull requests
+description: An agentic workflow verifies the affected behaviours and comments on the pull request.
+owner: ben
+status: shipped
+platforms: [actions]
+next_behaviour: 11
+
+behaviours:
+  - id: "9.3.1"
+    name: Turned on with gh-aw and a token
+    description: |
+      The installed check runs only once it's compiled with gh-aw and has a Copilot token.
+      Given `almanac agent install --tool copilot --ci` has written `.github/workflows/almanac-verify.md`
+      And the install printed "1. Run gh aw compile (from the gh-aw extension: gh extension install github/gh-aw). It writes .github/workflows/almanac-verify.lock.yml; commit it with the .md." and "2. Add the COPILOT_GITHUB_TOKEN secret: a fine-grained personal access token with Copilot Requests read access (gh aw secrets set COPILOT_GITHUB_TOKEN --value <token>)."
+      When the user runs `gh aw compile`, commits `.github/workflows/almanac-verify.lock.yml` with the `.md` and adds the `COPILOT_GITHUB_TOKEN` secret
+      Then the almanac check runs on the repository's pull requests
+      But until the lock file is committed, nothing runs
+    source: [packages/cli/src/commands/agent.ts#checksNote, packages/cli/assets/agent/github/almanac-verify.md]
+
+  - id: "9.3.2"
+    name: Runs when a pull request is opened or updated
+    description: |
+      Checks a pull request when it's opened and each time new commits are pushed to it.
+      Given the almanac check is turned on
+      When a pull request from a branch in the same repository is opened, or new commits are pushed to it
+      Then the check runs against the code as the pull request leaves it
+      But pull requests from forks aren't checked
+    source: [packages/cli/assets/agent/github/almanac-verify.md]
+
+  - id: "9.3.3"
+    name: Stops early when nothing cited changed
+    description: |
+      Ends the run without starting Copilot when the pull request touches no file the almanac cites.
+      Given a pull request that changes no file cited by a behaviour's `source` or covered by a feature's `code`
+      When the check runs
+      Then it records "No almanac behaviour cites a file this pull request changes." before the agent starts, so the run uses no Copilot premium request
+      And no comment is posted on the pull request
+    source: [packages/cli/assets/agent/github/almanac-verify.md]
+
+  - id: "9.3.4"
+    name: Checks affected behaviours against the pull request's code
+    description: |
+      Verifies only the behaviours that cite a file the pull request changes, against the code as the pull request leaves it.
+      Given a pull request that changes files cited by behaviours
+      When the check runs
+      Then Copilot reads each affected behaviour and the cited code as the pull request leaves it, looking hardest at the cited symbol and at what the pull request changed
+      And it marks each behaviour confirmed, corrected (wording, platforms, status or `source` are wrong, including a cited path or symbol that moved), unsupported (no code does this any more) or missing (the changed files do something a user can observe that no behaviour covers)
+    source: [packages/cli/assets/agent/github/almanac-verify.md]
+
+  - id: "9.3.5"
+    name: Looks for gaps in features that own the changed code
+    description: |
+      Finds missing behaviours in changed files that a feature's `code` covers.
+      Given a pull request that changes a file covered by a feature's `code` paths but cited by none of its behaviours
+      When the check runs
+      Then Copilot looks in that file's changes for anything a user can observe that no behaviour covers
+      And reports each one as missing, with the feature's ID followed by "(new)"
+    source: [packages/cli/assets/agent/github/almanac-verify.md]
+
+  - id: "9.3.6"
+    name: Comments once with a results table
+    description: |
+      Posts a single pull request comment with the result for every affected behaviour.
+      Given the check has verified the affected behaviours
+      When it reports
+      Then it posts one comment that starts with a summary line such as "Checked 7 behaviours: 5 confirmed, 1 corrected, 1 missing."
+      And a table with the columns ID, Name, Result and Suggested change, where a corrected or missing behaviour's suggested change is a summary line and Given/When/Then, an unsupported one's says what the code does now or that it no longer exists, and a confirmed one's is empty
+      And under the table, the file, symbol and line behind every row that isn't confirmed
+      And a last line: "To apply these, run `/almanac-update <number>` in your agent, or edit the almanac with `almanac apply`."
+    source: [packages/cli/assets/agent/github/almanac-verify.md]
+
+  - id: "9.3.7"
+    name: Replaces the previous run's comment
+    description: |
+      Keeps one current almanac comment on the pull request.
+      Given an earlier run posted an almanac check comment on the pull request
+      When a new run posts its comment
+      Then the earlier comment is hidden
+    source: [packages/cli/assets/agent/github/almanac-verify.md]
+
+  - id: "9.3.8"
+    name: Reports without changing anything
+    description: |
+      The check can only comment; it never changes the repository.
+      Given the check finds behaviours to correct or add
+      When it finishes
+      Then its comment is the only thing it writes
+      But it doesn't edit files, run `almanac apply`, commit or push: applying the suggestions is the author's decision
+    source: [packages/cli/assets/agent/github/almanac-verify.md]
+
+  - id: "9.3.9"
+    name: Ignores instructions in the pull request
+    description: |
+      Text in the pull request can't redirect the check.
+      Given a pull request whose code, comments or description contain instructions addressed to the agent
+      When the check runs
+      Then Copilot treats that text as data to check, not instructions to follow
+    source: [packages/cli/assets/agent/github/almanac-verify.md]
+
+  - id: "9.3.10"
+    name: No issues opened
+    description: |
+      A run that finds nothing to check, or fails, doesn't open an issue.
+      When a run ends with nothing to check, or fails
+      Then no issue is opened in the repository
+    source: [packages/cli/assets/agent/github/almanac-verify.md]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "9.3.6"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "9.3.1"
+      - added: "9.3.2"
+      - added: "9.3.3"
+      - added: "9.3.4"
+      - added: "9.3.5"
+      - added: "9.3.6"
+      - added: "9.3.7"
+      - added: "9.3.8"
+      - added: "9.3.9"
+      - added: "9.3.10"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

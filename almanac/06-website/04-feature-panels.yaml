@@ -1,0 +1,96 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "6.4"
+name: Feature panels
+description: A card unfolds over the page into a panel listing every behaviour.
+owner: ben
+status: shipped
+platforms: [web]
+next_behaviour: 8
+
+behaviours:
+  - id: "6.4.1"
+    name: Unfold a card
+    description: |
+      Unfolds a card into a panel over the page.
+      When the user clicks a feature card
+      Then the card unfolds over 260 ms into a panel as wide as the card grid, reaching to 16px from the top and bottom of the window, over everything including the search bar
+      And the page behind dims and stops scrolling, while the panel scrolls on its own
+      And the address ends with the feature's ID, as in "#6.4"
+      But when the system asks for reduced motion the panel appears without unfolding
+    source: [packages/site/assets/site.js#show, packages/site/assets/site.js#place, packages/site/assets/site.css]
+
+  - id: "6.4.2"
+    name: What a panel shows
+    description: |
+      Lays out everything about the feature in two columns.
+      Given a feature's panel is open
+      When the user reads it
+      Then the left column shows the feature's reference, behaviour count, name, full description with its formatting and links, each platform with its status, "Owner" with the owner's name and the feature's links, its review bar, "Review these" and "Close"
+      And the right column shows the feature's overview, if it has one, then the behaviour count and every behaviour
+      And the left column stays in view while the right column scrolls
+      And a feature with no behaviours says "No behaviours written yet."
+    source: [packages/site/src/render.ts#renderPanel, packages/site/assets/site.css]
+
+  - id: "6.4.3"
+    name: Close a panel
+    description: |
+      Folds the panel back onto its card.
+      Given a feature's panel is open
+      When the user clicks "Close", presses Escape, or clicks anywhere outside the panel other than the search bar
+      Then the panel folds back onto its card over 260 ms and the page scrolls again
+      And the feature's ID leaves the address
+      And keyboard focus goes back to the card or link that opened the panel
+    source: [packages/site/assets/site.js#close, packages/site/assets/site.js#hide, packages/site/assets/site.js#route]
+
+  - id: "6.4.4"
+    name: One panel at a time
+    description: |
+      Closes the open panel when another opens.
+      Given a feature's panel is open
+      When the user follows a link to another feature or behaviour, such as an ID linked in the feature's description
+      Then the first panel closes at once and the other opens in its place
+    source: [packages/site/assets/site.js#show, packages/site/assets/site.js#navigate]
+
+  - id: "6.4.5"
+    name: Narrow windows
+    description: |
+      Stacks the panel's columns on narrow windows.
+      Given a window 860px wide or narrower
+      When a feature's panel opens
+      Then its two columns stack, with the feature's details above its behaviours, and the details scroll away with the list
+    source: [packages/site/assets/site.css]
+
+  - id: "6.4.6"
+    name: Without JavaScript
+    description: |
+      Shows every panel open when the browser runs no JavaScript.
+      Given the reader's browser runs no JavaScript
+      When they open the site
+      Then every feature's panel is shown open under its card, in the flow of the page, so every behaviour can be read and found with the browser's find-in-page
+      But "Close", "Review" and "Review these" are hidden, and typing in the search box filters nothing
+    source: [packages/site/src/render.ts#renderSite, packages/site/assets/site.css]
+
+  - id: "6.4.7"
+    name: Printing
+    description: |
+      Prints every feature in full.
+      When the user prints the page
+      Then every feature's panel is printed open, in place under its card
+      But the hero, search bar, category bar, footer and review buttons are left out
+    source: [packages/site/assets/site.css]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "6.4.1"
+      - added: "6.4.2"
+      - added: "6.4.3"
+      - added: "6.4.4"
+      - added: "6.4.5"
+      - added: "6.4.6"
+      - added: "6.4.7"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

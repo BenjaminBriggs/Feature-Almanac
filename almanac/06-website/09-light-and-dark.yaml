@@ -1,0 +1,66 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "6.9"
+name: Light and dark
+description: Follows the system appearance, with a toggle.
+owner: ben
+status: shipped
+platforms: [web]
+next_behaviour: 5
+
+behaviours:
+  - id: "6.9.1"
+    name: Follows the system at first
+    description: |
+      Starts in the system's light or dark appearance.
+      Given the reader hasn't picked a theme on the site in this browser
+      When they open the site
+      Then it shows in light if the system is set to light, and in dark otherwise, from the first paint without a flash
+      But a change to the system setting while the page is open only shows after a reload
+    source: [packages/site/src/render.ts#THEME_SCRIPT]
+
+  - id: "6.9.2"
+    name: Toggle
+    description: |
+      Switches between light and dark from the search bar.
+      Given the page is dark
+      When the user clicks "Light" to the right of the search box
+      Then the page turns light grey with white cards and red links, and the button now reads "Dark"
+      And clicking "Dark" turns it back
+      And on windows 560px wide or narrower the button shows only its half-filled circle
+    source: [packages/site/assets/site.js, packages/site/assets/site.css]
+
+  - id: "6.9.3"
+    name: Remembers the choice
+    description: |
+      Keeps the reader's chosen theme for later visits.
+      Given the user has switched theme with the toggle
+      When they come back to the site in the same browser
+      Then it opens in the theme they chose, whatever the system setting
+      But where the browser refuses storage, as some private windows do, the choice lasts only until the page is reloaded or closed
+    source: [packages/site/src/render.ts#THEME_SCRIPT, packages/site/assets/site.js]
+
+  - id: "6.9.4"
+    name: Without JavaScript
+    description: |
+      Stays dark when the browser runs no JavaScript.
+      Given the reader's browser runs no JavaScript
+      When they open the site
+      Then it is always dark, whatever the system setting, and the toggle is hidden
+    source: [packages/site/assets/site.css, packages/site/src/render.ts#renderSite]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "6.9.3"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "6.9.1"
+      - added: "6.9.2"
+      - added: "6.9.3"
+      - added: "6.9.4"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

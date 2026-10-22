@@ -1,0 +1,109 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "6.3"
+name: Hero and category cards
+description: An overview of the product, with each category's features as cards.
+owner: ben
+status: shipped
+platforms: [web]
+next_behaviour: 9
+
+behaviours:
+  - id: "6.3.1"
+    name: Hero
+    description: |
+      Opens with the product's name, tagline and platforms.
+      When the user opens the site
+      Then the top of the page reads "The Almanac of" above the product's name, with the tagline under it
+      And it lists every platform in the almanac, each with a filled square, and "Generated" with the build date
+    source: [packages/site/src/render.ts#renderSite]
+
+  - id: "6.3.2"
+    name: Counts
+    description: |
+      Counts the behaviours, features and categories on record.
+      When the user opens the site
+      Then beside the title the hero shows the number of behaviours under "Behaviours on record", and the numbers of features and categories
+      And removed categories, features and behaviours aren't counted, while planned and in-progress ones are
+      And below them a product review bar shows how many behaviours are approved, as in "Product review · 0 of 400 approved", left out only when there are no behaviours
+    source: [packages/site/src/render.ts#renderSite, packages/site/src/model.ts#isLive]
+
+  - id: "6.3.3"
+    name: Category sections
+    description: |
+      Shows each category in turn, with its features under it.
+      When the user scrolls down the page
+      Then each category appears in ID order with its reference ("FA-6"), its feature count ("10 features"), its name as a large heading and its description
+      And a large outlined numeral such as "06" stands beside the heading, moving above it on windows narrower than 1180px
+      And a category with no features says "No features yet."
+      But removed categories and removed features are left out of the page
+    source: [packages/site/src/render.ts#renderCategory, packages/site/assets/site.css]
+
+  - id: "6.3.4"
+    name: Feature cards
+    description: |
+      Shows each feature as a card summarising it.
+      Given a category with features
+      When the user looks at its cards
+      Then each card shows the feature's reference ("FA-6.3"), its behaviour count as two digits ("07 behaviours"), its name, its description as plain text and its platforms
+      And a feature with behaviours also has a review bar with "<n> of <total> approved", plus how many are rejected or changed
+      And the cards fill as many columns at least 300px wide as fit, 20px apart
+    source: [packages/site/src/render.ts#renderCard, packages/site/assets/site.css]
+
+  - id: "6.3.5"
+    name: Platform status squares
+    description: |
+      Marks each platform's status with a small square.
+      Given a feature's card or panel lists its platforms
+      When the user looks at a platform
+      Then a filled lime square marks shipped, a half-filled one in progress, an empty one planned, a solid red one deprecated, an empty one with a slash removed, and a dashed one any other status
+      And on a card the status's name is only read out by screen readers, while a panel spells it out, as in "Command line · Available"
+    source: [packages/site/src/render.ts#statusIcon, packages/site/src/render.ts#platformBadges]
+
+  - id: "6.3.6"
+    name: Card hover
+    description: |
+      Lifts a card when the pointer is over it.
+      When the user points at a feature card
+      Then the card lifts 4px up and to the left over a red shadow
+      But when the system asks for reduced motion the card stays put and only the shadow appears
+    source: [packages/site/assets/site.css]
+
+  - id: "6.3.7"
+    name: Narrow windows
+    description: |
+      Fits the page to a phone-width window.
+      Given a window 560px wide or narrower
+      When the user opens the site
+      Then the side margins shrink to 16px, the counts sit below the title, and the cards form a single column
+    source: [packages/site/assets/site.css]
+
+  - id: "6.3.8"
+    name: Citation hint in the footer
+    description: |
+      Ends the page with an example of citing by ID.
+      When the user scrolls to the bottom of the page
+      Then the footer shows "Cite anything by its ID — FA-1.1.1" beside the build stamp, using the reference of the first behaviour on the page, or of the first feature when there are no behaviours
+      But an almanac with no features leaves that line out
+    source: [packages/site/src/render.ts#renderSite]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "6.3.2"
+      - modified: "6.3.6"
+      - added: "6.3.8"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "6.3.1"
+      - added: "6.3.2"
+      - added: "6.3.3"
+      - added: "6.3.4"
+      - added: "6.3.5"
+      - added: "6.3.6"
+      - added: "6.3.7"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

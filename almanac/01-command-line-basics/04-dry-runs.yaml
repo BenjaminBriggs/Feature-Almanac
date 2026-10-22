@@ -1,0 +1,88 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "1.4"
+name: Dry runs
+description: See the exact file changes a write would make before making it.
+owner: ben
+status: shipped
+platforms: [cli]
+next_behaviour: 7
+
+behaviours:
+  - id: "1.4.1"
+    name: Preview a write as a diff
+    description: |
+      Shows the exact file changes a write would make, and changes nothing.
+      Given an almanac
+      When the user adds `--dry-run` to a write, as in `almanac --dry-run rename 1.2 --name "Cloud sync"`
+      Then a unified diff of every file the write would change is printed, with paths relative to the almanac folder
+      And the diff includes the changelog entry the write would add
+      And no file is changed
+      And the same works for `init`, `add`, `set`, `describe`, `remove`, `mv`, `changelog add`, `apply`, `fmt`, `lint --fix`, `relink` and `agent install`, with paths relative to the current folder for `init` and `agent install`
+    source: [packages/cli/src/commands/write.ts#commitEdit, packages/cli/src/commands/write.ts#commit, packages/core/src/changes.ts#renderDiff, packages/core/src/transaction.ts#commitChanges]
+
+  - id: "1.4.2"
+    name: New and renamed files
+    description: |
+      Shows a new file as a diff from /dev/null and a renamed file as a rename line.
+      Given a write that creates or renames files
+      When the user previews it with `--dry-run`
+      Then a new file is shown as a diff from `/dev/null`, as in "--- /dev/null" followed by "+++ b/03-sharing/category.yaml"
+      And a renamed file or folder gets a line such as "rename 01-editing/02-sync.yaml → 01-editing/02-cloud-sync.yaml" before its diff
+    source: [packages/core/src/changes.ts#renderDiff]
+
+  - id: "1.4.3"
+    name: Lint check still applies
+    description: |
+      Refuses a previewed write that would add lint errors, just as the real write would be refused.
+      Given a patch that would add a lint error, such as a `related` feature that doesn't exist
+      When the user runs `almanac --dry-run apply patch.json`
+      Then the new errors are listed, such as "related 9.9 does not resolve to a feature"
+      And it fails with "This patch would introduce lint errors; nothing was written" and exit code 1
+      And no diff is printed
+    source: [packages/core/src/transaction.ts#commitChanges, packages/cli/src/commands/apply.ts#registerApplyCommand]
+
+  - id: "1.4.4"
+    name: Preview a patch
+    description: |
+      Previews a whole patch as one diff.
+      Given a patch file
+      When the user runs `almanac --dry-run apply patch.json`
+      Then one diff covers every file the patch's operations would change, changelog entries included
+      And the "Added …" and "Wrote N files" lines are left out
+      And "Skipped: …" lines for review decisions that no longer apply are still printed
+    source: [packages/cli/src/commands/apply.ts#registerApplyCommand]
+
+  - id: "1.4.5"
+    name: Builds say what they would write
+    description: |
+      Reports the file a build would write, without writing it.
+      Given an almanac
+      When the user runs `almanac --dry-run build` or `almanac --dry-run site build`
+      Then it prints "Would write dist/almanac.json: …" or "Would write dist/site/index.html …" with the same counts as a real build
+      And no file is written
+    source: [packages/cli/src/commands/check.ts#registerCheckCommands, packages/cli/src/commands/site.ts#registerSiteCommands]
+
+  - id: "1.4.6"
+    name: Dry runs in JSON
+    description: |
+      Reports a dry run in JSON as the list of files it would change, without the diff.
+      Given the user is using `--json`
+      When the user runs a write with `--dry-run`, as in `almanac --json --dry-run apply patch.json`
+      Then the envelope's `data` has `"dryRun": true`, the `files` that would change and what would be created
+      And the diff itself is not included
+    source: [packages/cli/src/context.ts#Context, packages/cli/src/commands/apply.ts#registerApplyCommand, packages/cli/src/commands/write.ts#commitEdit]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "1.4.1"
+      - added: "1.4.2"
+      - added: "1.4.3"
+      - added: "1.4.4"
+      - added: "1.4.5"
+      - added: "1.4.6"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

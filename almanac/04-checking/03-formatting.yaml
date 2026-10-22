@@ -1,0 +1,109 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "4.3"
+name: Formatting
+description: Normalise every file, or check that none would change.
+owner: ben
+status: shipped
+platforms: [cli]
+next_behaviour: 8
+
+behaviours:
+  - id: "4.3.1"
+    name: Normalising files
+    description: |
+      Rewrites every almanac file in the standard layout.
+      Given almanac files that were edited by hand
+      When the user runs `almanac fmt`
+      Then keys are put in the standard order, starting with `id`, `name` and `description`
+      And IDs, references, versions and dates are double-quoted, multi-line text becomes a `|` block, and one-line text is left plain
+      And behaviours and changelog entries are written as block lists, with a blank line between behaviours
+      But an item written inline as `{…}` stays inline, with any multi-line text in it double-quoted
+      And it prints the files it changed, such as "Formatted 1 file: 01-editing/01-markdown-editor.yaml", or "All files formatted." when nothing needed changing
+      But ID counters are left alone; `almanac lint --fix` raises them
+    source: [packages/cli/src/commands/check.ts#registerCheckCommands, packages/core/src/format.ts#formatDocument, packages/core/src/format.ts#normaliseScalars, packages/core/src/format.ts#orderKeys]
+
+  - id: "4.3.2"
+    name: Behaviour order
+    description: |
+      Sorts each feature's behaviours by ID, numerically.
+      Given feature 1.1 with behaviours stored in the order 1.1.10, 1.1.2, 1.1.1
+      When the user runs `almanac fmt`
+      Then they are stored as 1.1.1, 1.1.2, 1.1.10
+      And a comment above a behaviour moves with it
+    source: [packages/core/src/format.ts#formatFeature, packages/schema/src/refs.ts#compareIds]
+
+  - id: "4.3.3"
+    name: Renaming files and folders
+    description: |
+      Renames files and folders to match their ID and name.
+      Given feature 1.1 "Markdown editor" stored as `1-editor.yaml` in the folder `01-edit` of category 1 "Editing"
+      When the user runs `almanac fmt`
+      Then the file becomes `01-markdown-editor.yaml` and the folder `01-editing`
+      And the message lists each new name, such as "Formatted 2 files: 01-edit/01-markdown-editor.yaml, 01-editing", and the old name as well of a file whose content was rewritten too
+      But nothing is renamed onto a file or folder that already exists
+    source: [packages/core/src/format.ts#planFormat, packages/core/src/names.ts#featureFileName, packages/core/src/names.ts#categoryDirName]
+
+  - id: "4.3.4"
+    name: Comments and digits kept
+    description: |
+      Keeps comments, and every digit of an ID, while it reformats.
+      Given a feature file with comments and its feature ID written unquoted as 1.10
+      When the user runs `almanac fmt`
+      Then the ID becomes "1.10", not "1.1"
+      And comments stay with the keys and items they sit above
+      And the `yaml-language-server` header comment stays at the top of the file
+    source: [packages/core/src/format.ts#quote, packages/core/src/format.ts#orderKeys]
+
+  - id: "4.3.5"
+    name: Checking formatting
+    description: |
+      Lists the files that would change, for CI, and changes nothing.
+      Given an almanac with one file that isn't formatted
+      When the user runs `almanac fmt --check`
+      Then it prints "would reformat 01-editing/01-markdown-editor.yaml" and exits with code 1
+      And when every file is formatted it prints "All files formatted." and exits with code 0
+      And with `--json`, `data.changed` lists the files that would change
+    source: [packages/cli/src/commands/check.ts#registerCheckCommands, packages/core/src/format.ts#planFormat]
+
+  - id: "4.3.6"
+    name: Files that don't parse
+    description: |
+      Skips files that aren't valid YAML, and says so.
+      Given a category.yaml that isn't valid YAML
+      When the user runs `almanac fmt`
+      Then stderr says "skipped 02-sync/category.yaml: it does not parse (see almanac lint)"
+      And that file is left as it is while the others are formatted
+      And with `--json` it is listed in `data.skipped`
+    source: [packages/cli/src/commands/check.ts#registerCheckCommands, packages/core/src/format.ts#planFormat]
+
+  - id: "4.3.7"
+    name: Dry run
+    description: |
+      Shows the formatting as a diff without writing anything.
+      Given an almanac with files that aren't formatted
+      When the user runs `almanac --dry-run fmt`
+      Then a unified diff of each file is printed, with each rename as a line such as "rename 01-edit → 01-editing"
+      And no file changes
+    source: [packages/cli/src/commands/check.ts#registerCheckCommands, packages/core/src/changes.ts#renderDiff]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "4.3.1"
+      - modified: "4.3.3"
+      - modified: "4.3.4"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "4.3.1"
+      - added: "4.3.2"
+      - added: "4.3.3"
+      - added: "4.3.4"
+      - added: "4.3.5"
+      - added: "4.3.6"
+      - added: "4.3.7"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

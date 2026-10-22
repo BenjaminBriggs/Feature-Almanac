@@ -1,0 +1,179 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "3.1"
+name: Adding
+description: Add categories, features, behaviours and variants with the next free ID.
+owner: ben
+status: shipped
+platforms: [cli]
+next_behaviour: 13
+
+behaviours:
+  - id: "3.1.1"
+    name: Add a category
+    description: |
+      Creates a new category folder with the next free category number.
+      Given an almanac whose highest category is 1
+      When the user runs `almanac add category --name Sync --description "Keeping notes the same on every device."`
+      Then it prints "Added category 2 Sync (02-sync/category.yaml)"
+      And the new folder `02-sync/` holds the category's `category.yaml`
+      And `--owner` gives the category an owner
+    source: [packages/core/src/mutations.ts#addCategory, packages/cli/src/commands/write.ts#registerWriteCommands]
+
+  - id: "3.1.2"
+    name: Add a feature
+    description: |
+      Creates a feature file in its category, numbered after the category's last feature.
+      Given category 1 Editing has features up to 1.2
+      When the user runs `almanac add feature --category 1 --name "Markdown editor" --description "Rich editing of notes with live preview." --owner ben`
+      Then it prints "Added feature 1.3 Markdown editor (01-editing/03-markdown-editor.yaml)"
+      And the new file has no behaviours yet
+      And its changelog starts with "Added Markdown editor."
+    source: [packages/core/src/mutations.ts#addFeature, packages/cli/src/commands/write.ts#registerWriteCommands]
+
+  - id: "3.1.3"
+    name: New feature defaults
+    description: |
+      A new feature is planned and applies to every platform unless the user says otherwise.
+      Given an almanac that uses the default statuses
+      When the user adds a feature without `--status` or `--platforms`
+      Then its status is `planned`, the first entry of `statuses` in almanac.yaml
+      And it applies to every platform in almanac.yaml
+      But `--status shipped` sets the status, and `--platforms` takes platforms, groups or exclusions such as `!android`
+    source: [packages/core/src/mutations.ts#addFeature]
+
+  - id: "3.1.4"
+    name: Add a behaviour
+    description: |
+      Appends a behaviour to a feature with the feature's next behaviour number.
+      Given feature 1.1 has behaviours up to 1.1.2
+      When the user runs `almanac add behaviour --feature 1.1 --name "Bold formatting" --description "Makes the selected text bold." --source Sources/Editor/EditorView.swift#toggleBold`
+      Then it prints "Added behaviour 1.1.3 Bold formatting (01-editing/01-markdown-editor.yaml)"
+      And the behaviour is last in the feature's list, with every `--source` given (the option repeats)
+      And the feature's changelog gets "Added Bold formatting."
+      And `--format` records the description's format; without it the almanac's default applies, which is gherkin unless almanac.yaml says otherwise
+      But it applies to the feature's platforms unless `--platforms` narrows it
+    source: [packages/core/src/mutations.ts#addBehaviour, packages/cli/src/commands/write.ts#registerWriteCommands]
+
+  - id: "3.1.5"
+    name: Description from a file or standard input
+    description: |
+      `add behaviour` and `add variant` read a long description from a file or from standard input.
+      Scenario: From a file
+        Given the description is in `bold.txt`
+        When the user runs `almanac add behaviour --feature 1.1 --name "Bold formatting" --description-file bold.txt`
+        Then the behaviour's description is the text of `bold.txt`
+      Scenario: From standard input
+        Given the description is piped in, for example from a heredoc
+        When the user runs `almanac add behaviour --feature 1.1 --name "Bold formatting" -`
+        Then the behaviour's description is the text read from standard input
+    source: [packages/cli/src/commands/write.ts#readDescription]
+
+  - id: "3.1.6"
+    name: Exactly one description source
+    description: |
+      Refuses a behaviour or variant whose description is missing, given twice or in a file that can't be read.
+      Scenario: More than one source
+        When the user gives more than one of `--description`, `--description-file` and `-`
+        Then it stops with "error: Use only one of --description, --description-file and -" and exits 2
+      Scenario: No description
+        When the user runs `almanac add behaviour --feature 1.1 --name "Bold formatting"` with no description
+        Then it stops with "error: A description is required: --description, --description-file, or - to read stdin" and exits 2
+      Scenario: Unreadable file
+        When the user passes `--description-file missing.txt` and the file doesn't exist
+        Then it stops with "error: Cannot read missing.txt" and exits 2
+      Scenario: A stray argument
+        When the user passes an argument other than `-`, as in `almanac add behaviour --feature 1.1 --name "Bold formatting" bold.txt`
+        Then it stops with `error: Unexpected argument "bold.txt"` and exits 2
+    source: [packages/cli/src/commands/write.ts#readDescription]
+
+  - id: "3.1.7"
+    name: Add a variant
+    description: |
+      Adds a platform-specific difference to a behaviour, named after its first platform.
+      Given behaviour 1.1.1 Bold formatting applies to iOS and Android
+      When the user runs `almanac add variant 1.1.1 --platforms android --description "On Android, Bold is in the formatting bar above the keyboard."`
+      Then it prints "Added variant 1.1.1@android (01-editing/01-markdown-editor.yaml)"
+      And the feature's changelog gets "Added Android variant of Bold formatting."
+      And a variant covering several platforms is named after the first of them in almanac.yaml order
+      And `--mode replace` marks its text as replacing the behaviour's on those platforms, instead of adding to it (`append`, the default)
+    source: [packages/core/src/mutations.ts#addVariant, packages/cli/src/commands/write.ts#registerWriteCommands]
+
+  - id: "3.1.8"
+    name: Variant mode must be append or replace
+    description: |
+      Refuses any other variant mode.
+      When the user runs `almanac add variant 1.1.1 --platforms android --mode swap --description "On Android, Bold is in the formatting bar."`
+      Then it stops with `error: --mode must be append or replace, got "swap"` and exits 2
+    source: [packages/cli/src/commands/write.ts#registerWriteCommands]
+
+  - id: "3.1.9"
+    name: IDs are never reused
+    description: |
+      A new ID always comes after every number ever used under its parent, including removed and moved-away ones.
+      Given 1.1.3 is the highest behaviour number feature 1.1 has used
+      And behaviour 1.1.3 has since been removed or moved to another feature
+      When the user adds a behaviour to 1.1
+      Then it gets 1.1.4, not 1.1.3
+      And features in a category and categories themselves are numbered the same way
+    source: [packages/core/src/mutations.ts#nextNumber, packages/core/src/mutations.ts#maxUsed]
+
+  - id: "3.1.10"
+    name: Parent must exist at the right level
+    description: |
+      Refuses a parent that doesn't exist or isn't the right kind of entity.
+      Scenario: Missing parent
+        Given there is no category 9
+        When the user runs `almanac add feature --category 9 --name Sharing --description "Sharing notes with other people." --owner ben`
+        Then it stops with "error: Category 9 not found" and exits 3
+      Scenario: Wrong level
+        When the user runs `almanac add feature --category 1.1 --name Sharing --description "Sharing notes with other people." --owner ben`
+        Then it stops with `error: "1.1" is not a category ID` and exits 2
+    source: [packages/core/src/query.ts#resolveId, packages/core/src/mutations.ts#addFeature]
+
+  - id: "3.1.11"
+    name: Removed parents take no additions
+    description: |
+      Refuses to add a feature to a removed category or a behaviour to a removed feature.
+      Given feature 1.3 has been removed
+      When the user runs `almanac add behaviour --feature 1.3 --name "Keep both" --description "Keeps both copies of a note."`
+      Then it stops with "error: Feature 1.3 is removed" and exits 4
+      And adding a feature to a removed category 1 stops with "error: Category 1 is removed" and exits 4
+    source: [packages/core/src/mutations.ts#addFeature, packages/core/src/mutations.ts#addBehaviour]
+
+  - id: "3.1.12"
+    name: Additions that break the rules are refused
+    description: |
+      Refuses an addition that would add lint errors, and writes nothing.
+      Given a behaviour name 81 characters long
+      When the user adds a behaviour with that name
+      Then it prints the lint error with its file and line, such as "ALM-E009  behaviours[2].name: Too big: expected string to have <=80 characters"
+      And it stops with "error: Adding this behaviour would introduce lint errors; nothing was written" and exits 1
+      And category and feature names over 60 characters, feature descriptions over 280 characters and unknown platforms are refused the same way
+    source: [packages/cli/src/commands/write.ts#commit, packages/core/src/transaction.ts#commitChanges, packages/schema/src/files.ts#behaviourSchema]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "3.1.1"
+      - modified: "3.1.4"
+      - modified: "3.1.6"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "3.1.1"
+      - added: "3.1.2"
+      - added: "3.1.3"
+      - added: "3.1.4"
+      - added: "3.1.5"
+      - added: "3.1.6"
+      - added: "3.1.7"
+      - added: "3.1.8"
+      - added: "3.1.9"
+      - added: "3.1.10"
+      - added: "3.1.11"
+      - added: "3.1.12"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

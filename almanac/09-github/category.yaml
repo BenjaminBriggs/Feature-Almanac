@@ -1,0 +1,6 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/category.json
+id: 9
+name: GitHub
+description: Running Feature Almanac in GitHub Actions and on pull requests.
+owner: ben
+next_feature: 4

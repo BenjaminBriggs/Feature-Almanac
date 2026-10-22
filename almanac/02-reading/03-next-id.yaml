@@ -1,0 +1,93 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "2.3"
+name: Next ID
+description: Preview the ID the next add would allocate.
+owner: ben
+status: shipped
+platforms: [cli]
+next_behaviour: 8
+
+behaviours:
+  - id: "2.3.1"
+    name: Next category
+    description: |
+      Prints the ID the next new category will get.
+      Given the almanac has categories 1 and 2
+      When the user runs `almanac next-id`
+      Then it prints `3`
+    source: [packages/cli/src/commands/read.ts#registerReadCommands, packages/core/src/mutations.ts#nextId]
+
+  - id: "2.3.2"
+    name: Next feature
+    description: |
+      Prints the ID the next feature in a category will get.
+      Given category 1 has features 1.1 and 1.2
+      When the user runs `almanac next-id 1`
+      Then it prints `1.3`
+    source: [packages/core/src/mutations.ts#nextId]
+
+  - id: "2.3.3"
+    name: Next behaviour
+    description: |
+      Prints the ID the next behaviour in a feature will get.
+      Given feature 1.1 has behaviours 1.1.1 to 1.1.3
+      When the user runs `almanac next-id 1.1`
+      Then it prints `1.1.4`
+    source: [packages/core/src/mutations.ts#nextId]
+
+  - id: "2.3.4"
+    name: Used IDs are skipped
+    description: |
+      Never offers an ID that has been used, even by something removed or moved away.
+      Given behaviour 1.1.3 has been removed, and behaviour 1.2.1 has moved and is now 2.1.1
+      When the user runs `almanac next-id 1.1` and `almanac next-id 1.2`
+      Then they print `1.1.4` and `1.2.2`
+      And the ID is never lower than the counter stored in the file
+    source: [packages/core/src/mutations.ts#nextNumber, packages/core/src/mutations.ts#maxUsed]
+
+  - id: "2.3.5"
+    name: Preview only
+    description: |
+      Reserves nothing, so the next add gets the same ID.
+      Given `almanac next-id 1.1` prints `1.1.4`
+      When the user runs it again
+      Then it prints `1.1.4` again and no file changes
+      And the next `almanac add behaviour --feature 1.1` creates behaviour 1.1.4
+    source: [packages/cli/src/commands/read.ts#registerReadCommands, packages/core/src/mutations.ts#nextId]
+
+  - id: "2.3.6"
+    name: Parent references
+    description: |
+      Accepts prefixed and former IDs, and refuses parents that can't have children.
+      Given an almanac with the prefix EX
+      When the user runs `almanac next-id EX-1`, or gives a category or feature by its former ID
+      Then the parent is found as with `almanac show`, and a former ID prints a note such as "note: 1.2 is now 3.1" first
+      And a behaviour or variant as the parent fails with "1.1.1 is a behaviour; only categories and features have child IDs (variants are named by platform)" and exit code 2
+      And a parent that doesn't exist fails with a message such as "Category 9 not found" and exit code 3
+    source: [packages/core/src/mutations.ts#nextId, packages/core/src/query.ts#lookup]
+
+  - id: "2.3.7"
+    name: Next ID as JSON
+    description: |
+      Gives the next ID in the JSON envelope.
+      Given an almanac
+      When the user runs `almanac --json next-id 1.1`
+      Then `data` is `{ "parent": "1.1", "id": "1.1.4" }`
+      And without a parent it is just the ID, as in `{ "id": "3" }`
+    source: [packages/cli/src/commands/read.ts#registerReadCommands]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "2.3.1"
+      - added: "2.3.2"
+      - added: "2.3.3"
+      - added: "2.3.4"
+      - added: "2.3.5"
+      - added: "2.3.6"
+      - added: "2.3.7"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

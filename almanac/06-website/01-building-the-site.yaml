@@ -1,0 +1,106 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "6.1"
+name: Building the site
+description: Build one self-contained page that works from any host.
+owner: ben
+status: shipped
+platforms: [cli]
+next_behaviour: 9
+
+behaviours:
+  - id: "6.1.1"
+    name: Build beside the almanac
+    description: |
+      Writes the website into dist/site next to the almanac folder.
+      Given an almanac kept in an `almanac/` folder inside a repository
+      When the user runs `almanac site build`
+      Then `index.html` and `almanac.json` are written to `dist/site/` in the folder that holds `almanac/`
+      And the almanac's lint findings are listed, then "Wrote dist/site/index.html (0 errors, 2 warnings)", with the path relative to the current folder, or in full when the output is outside it
+      But an almanac whose own folder isn't called `almanac` gets `dist/site/` inside that folder
+    source: [packages/cli/src/commands/site.ts#registerSiteCommands, packages/core/src/root.ts#projectDir]
+
+  - id: "6.1.2"
+    name: Choose the output folder
+    description: |
+      Writes the site to the folder given with `--out`.
+      When the user runs `almanac site build --out _site`
+      Then `index.html` and `almanac.json` are written into `_site`, relative to the current folder
+      And the folder is created if it doesn't exist
+    source: [packages/cli/src/commands/site.ts#registerSiteCommands, packages/core/src/fs.ts#NodeFileSystem]
+
+  - id: "6.1.3"
+    name: One self-contained page
+    description: |
+      Puts the whole site in one HTML file that works from any address.
+      Given a built site
+      When the user opens `index.html` from disk, from a web server, or from a sub-path such as a GitHub Pages address
+      Then it works the same everywhere: its styles, script, search index and background texture are inside the file, and its own links only point within the page
+      But its three typefaces load from Google Fonts, so without a connection it falls back to the system's fonts
+    source: [packages/site/src/render.ts#renderSite, packages/site/src/render.ts#FONTS, packages/site/src/texture.ts#pixelGridDataUri]
+
+  - id: "6.1.4"
+    name: Compiled almanac alongside
+    description: |
+      Writes the whole compiled almanac as JSON next to the page.
+      When the user builds the site
+      Then `almanac.json` beside `index.html` holds every category, feature and behaviour, removed ones included, as formatted JSON
+    source: [packages/site/src/render.ts#buildSite]
+
+  - id: "6.1.5"
+    name: Builds despite lint errors
+    description: |
+      Still writes the page when the almanac has lint errors, but fails the command.
+      Given an almanac with lint errors, such as a feature file that isn't valid YAML
+      When the user runs `almanac site build`
+      Then the errors are listed and the page is still written, with the count in "Wrote dist/site/index.html (1 errors, 0 warnings)"
+      And the command exits with code 1
+      But when `almanac.yaml` is missing or invalid it stops with "almanac.yaml is missing or invalid" and writes nothing
+    source: [packages/cli/src/commands/site.ts#registerSiteCommands, packages/cli/src/context.ts#Context]
+
+  - id: "6.1.6"
+    name: Dry run
+    description: |
+      Reports what it would write without writing anything.
+      When the user runs `almanac --dry-run site build`
+      Then it lists the lint findings and prints "Would write dist/site/index.html (0 errors, 2 warnings)"
+      But no file is written
+    source: [packages/cli/src/commands/site.ts#registerSiteCommands]
+
+  - id: "6.1.7"
+    name: Build date and commit
+    description: |
+      Stamps the page with the day it was built and the commit it came from.
+      Given the almanac is in a git repository
+      When the site is built
+      Then the hero shows "Generated 22 Oct 2026" and the footer "Generated 22 Oct 2026 from a399c85 · Feature Almanac", with the first 7 characters of the current commit
+      But outside a git repository the footer leaves the commit out
+    source: [packages/site/src/render.ts#renderSite, packages/cli/src/commands/site.ts#compileForSite, packages/cli/src/io.ts#nodeIo]
+
+  - id: "6.1.8"
+    name: JSON result
+    description: |
+      Reports the output folder and files as JSON with `--json`.
+      When the user runs `almanac --json site build`
+      Then it prints one JSON envelope whose data names the output folder, the files written (`index.html` and `almanac.json`) and whether it was a dry run, with the lint findings as diagnostics
+    source: [packages/cli/src/commands/site.ts#registerSiteCommands]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "6.1.1"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "6.1.1"
+      - added: "6.1.2"
+      - added: "6.1.3"
+      - added: "6.1.4"
+      - added: "6.1.5"
+      - added: "6.1.6"
+      - added: "6.1.7"
+      - added: "6.1.8"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

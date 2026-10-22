@@ -1,0 +1,127 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "7.3"
+name: Decisions file
+description: Download the reviewer's decisions as a file to hand over.
+owner: ben
+status: shipped
+platforms: [web]
+next_behaviour: 10
+
+behaviours:
+  - id: "7.3.1"
+    name: Decisions kept in the browser
+    description: |
+      Decisions stay in the reviewer's browser until they clear them.
+      Given the reviewer has approved or rejected behaviours in review mode
+      When the reviewer reloads the page, or comes back to the site later in the same browser
+      Then their decisions are still there, ready to download
+      And each almanac keeps its own decisions, by its ID prefix such as "FA", or by its page title when it has no prefix
+      But a browser that refuses to store them, such as some private windows, keeps them only until the page closes
+    source: [packages/site/assets/site.js#writeStore, packages/site/assets/site.js#readStore, packages/site/assets/site.js#REVIEW_KEY]
+
+  - id: "7.3.2"
+    name: Decision count
+    description: |
+      Shows how many decisions are waiting to be downloaded.
+      Given review mode is open
+      When the reviewer approves or rejects a behaviour
+      Then the count beside "Download decisions" goes up, as "5 decisions", and the "Review" button in the search bar shows 5
+      But with 0 decisions the count reads "No decisions yet", the "Review" button shows no number, and "Download decisions" and "Clear" are disabled
+    source: [packages/site/assets/site.js#syncCounts, packages/site/src/render.ts#renderReviewDialog]
+
+  - id: "7.3.3"
+    name: Name needed to download
+    description: |
+      The file must say who decided, so the reviewer's name is required.
+      Given the reviewer has decisions and "Your name" is empty
+      When the reviewer clicks "Download decisions"
+      Then nothing downloads
+      And the progress line reads "Add your name first, so the file says who decided." and the cursor moves to "Your name"
+    source: [packages/site/assets/site.js#downloadDecisions]
+
+  - id: "7.3.4"
+    name: Name remembered
+    description: |
+      The reviewer's name is filled in for them next time.
+      Given the reviewer typed their name into "Your name"
+      When the reviewer opens the site again in the same browser
+      Then "Your name" already holds their name
+    source: [packages/site/assets/site.js#NAME_KEY, packages/site/assets/site.js#writeStore]
+
+  - id: "7.3.5"
+    name: Download decisions
+    description: |
+      Saves the reviewer's decisions as a file to send on.
+      Given the reviewer has 5 decisions and "Your name" reads "Sam Price"
+      When the reviewer clicks "Download decisions"
+      Then the browser saves a file named after the almanac's prefix, the name and today's date, such as "review-fa-sam-price-2026-10-22.json"
+      And the progress line reads "Downloaded 5 decisions. Send the file on, then clear them here."
+      But the decisions stay in the browser until the reviewer clears them
+    source: [packages/site/assets/site.js#downloadDecisions, packages/site/assets/site.js#slug]
+
+  - id: "7.3.6"
+    name: What the file holds
+    description: |
+      The file is a patch that records each decision with the text it was made on.
+      Given the reviewer approved one behaviour and rejected another with a reason
+      When the reviewer downloads their decisions
+      Then the file lists one decision per behaviour, in the order they appear on the site
+      And each gives the behaviour's ID, "approved" or "rejected", the reviewer's name, the day it was decided and a fingerprint of the name, description and variants the reviewer saw
+      And a rejection also gives the reviewer's reason
+      And `almanac apply` records the file as it is, writing no changelog entry
+    source: [packages/site/assets/site.js#downloadDecisions, packages/schema/src/files.ts#patchReviewOpSchema]
+
+  - id: "7.3.7"
+    name: Clear decisions
+    description: |
+      Empties the browser's decisions once they have been sent.
+      Given the reviewer has 5 decisions
+      When the reviewer clicks "Clear"
+      Then the browser asks "Clear 5 decisions? Download them first if you haven’t sent them."
+      And confirming removes every decision, the count reads "No decisions yet" and the list starts again
+      But cancelling keeps them all
+    source: [packages/site/assets/site.js#clearReviewButton]
+
+  - id: "7.3.8"
+    name: Out-of-date decisions dropped
+    description: |
+      A decision on text that has changed since is thrown away rather than sent.
+      Given the reviewer decided a behaviour that has since changed, or no longer exists on the site
+      When the reviewer opens the site again in the same browser
+      Then that decision is removed from the browser
+      And when they open review mode the progress line starts "1 earlier decision dropped because the behaviour changed."
+      And the changed behaviour comes back into the list as needing a decision
+    source: [packages/site/assets/site.js#stored, packages/site/assets/site.js#showItem]
+
+  - id: "7.3.9"
+    name: Recorded decisions cleared
+    description: |
+      Decisions the almanac already records are cleared from the browser without a message.
+      Given the almanac now records a current approval or rejection of a behaviour
+      And the reviewer's browser holds a decision with the same verdict on the same text
+      When the reviewer opens the site again in the same browser
+      Then that decision is removed from the browser, whoever made the recorded review and whatever its reason
+      And the decision count goes down to match
+    source: [packages/site/assets/site.js#stored]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "7.3.1"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "7.3.1"
+      - added: "7.3.2"
+      - added: "7.3.3"
+      - added: "7.3.4"
+      - added: "7.3.5"
+      - added: "7.3.6"
+      - added: "7.3.7"
+      - added: "7.3.8"
+      - added: "7.3.9"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

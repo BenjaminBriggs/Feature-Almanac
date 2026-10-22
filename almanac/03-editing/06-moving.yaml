@@ -1,0 +1,129 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "3.6"
+name: Moving
+description: Move a behaviour or feature under a new parent, keeping its old ID resolvable.
+owner: ben
+status: shipped
+platforms: [cli]
+next_behaviour: 9
+
+behaviours:
+  - id: "3.6.1"
+    name: Move a behaviour to another feature
+    description: |
+      Moves a behaviour to another feature, where it gets that feature's next ID.
+      Given behaviour 1.1.1 Bold is in feature 1.1, and feature 1.2 Autosave has no behaviours
+      When the user runs `almanac mv 1.1.1 --to 1.2`
+      Then it prints "Moved 1.1.1 → 1.2.1 Bold (01-editing/02-autosave.yaml)"
+      And the behaviour lists 1.1.1 under `formerly`
+      And its variants move with it
+    source: [packages/core/src/mutations.ts#moveEntity, packages/core/src/mutations.ts#moveBehaviour, packages/cli/src/commands/write.ts#registerWriteCommands]
+
+  - id: "3.6.2"
+    name: Old IDs still resolve
+    description: |
+      Commands accept an ID from before a move and say what it is now.
+      Given behaviour 1.1.1 was moved and is now 1.2.1
+      When the user runs `almanac show 1.1.1`
+      Then it prints "note: 1.1.1 is now 1.2.1" on standard error and shows behaviour 1.2.1
+      And with `--json`, the envelope lists the same in `redirects`
+      And write commands given 1.1.1, such as `almanac set 1.1.1 tags=core`, act on 1.2.1 the same way
+    source: [packages/core/src/query.ts#lookup, packages/cli/src/context.ts#Context]
+
+  - id: "3.6.3"
+    name: Move a feature to another category
+    description: |
+      Moves a feature's file into another category and renumbers it and its behaviours.
+      Given feature 1.2 Autosave has behaviour 1.2.1, and category 2 Sync has one feature
+      When the user runs `almanac mv 1.2 --to 2`
+      Then it prints "Moved 1.2 → 2.2 Autosave (02-sync/02-autosave.yaml)"
+      And the file moves from `01-editing/` to `02-sync/`
+      And behaviour 1.2.1 becomes 2.2.1, and each records its former ID under `formerly`
+    source: [packages/core/src/mutations.ts#moveFeature]
+
+  - id: "3.6.4"
+    name: Links follow a moved feature
+    description: |
+      Other features' `depends_on` and `related` follow a moved feature to its new ID.
+      Given feature 2.1 lists 1.2 under `depends_on` and `related`
+      When the user runs `almanac mv 1.2 --to 2` and 1.2 becomes 2.2
+      Then feature 2.1 lists 2.2 under both
+    source: [packages/core/src/mutations.ts#followFeature]
+
+  - id: "3.6.5"
+    name: Both features record a behaviour move
+    description: |
+      A moved behaviour is recorded in the changelogs of the feature it left and the one it joined.
+      When the user runs `almanac mv 1.1.1 --to 1.2`
+      Then feature 1.1 Editor's changelog says "Moved Bold to Autosave."
+      And feature 1.2 Autosave's changelog says "Moved Bold from Editor."
+      And both entries record the move from 1.1.1 to 1.2.1
+      And a moved feature's own changelog says, for example, "Moved Autosave from Editing to Sync."
+    source: [packages/core/src/mutations.ts#moveBehaviour, packages/core/src/mutations.ts#moveFeature]
+
+  - id: "3.6.6"
+    name: Moving back gets a new ID
+    description: |
+      A behaviour moved back to a feature it left gets a new ID there, never its old one.
+      Given behaviour 1.1.1 was moved to feature 1.2 and became 1.2.1
+      When the user runs `almanac mv 1.2.1 --to 1.1`
+      Then it gets the next free ID in 1.1, such as 1.1.3, not 1.1.1
+      And `formerly` lists both 1.1.1 and 1.2.1, so both still resolve
+    source: [packages/core/src/mutations.ts#moveBehaviour, packages/core/src/mutations.ts#nextNumber]
+
+  - id: "3.6.7"
+    name: Categories and variants don't move
+    description: |
+      Refuses to move a category or a single variant.
+      Scenario: A category
+        When the user runs `almanac mv 1 --to 2`
+        Then it stops with "error: Categories never move; move their features instead" and exits 2
+      Scenario: A variant
+        When the user runs `almanac mv 1.1.1@android --to 1.2`
+        Then it stops with "error: Variants move with their behaviour; move 1.1.1 instead" and exits 2
+    source: [packages/core/src/mutations.ts#moveEntity]
+
+  - id: "3.6.8"
+    name: Destination must be a new, live parent
+    description: |
+      Refuses a destination that is the current parent, the wrong kind, missing or removed.
+      Scenario: Already there
+        When the user runs `almanac mv 1.2.1 --to 1.2`
+        Then it stops with "error: Behaviour 1.2.1 is already in feature 1.2" and exits 4
+      Scenario: The wrong kind
+        When the user runs `almanac mv 1.2.1 --to 2`
+        Then it stops with `error: "2" is not a feature ID` and exits 2
+      Scenario: Missing
+        Given there is no feature 9.9
+        When the user runs `almanac mv 1.2.1 --to 9.9`
+        Then it stops with "error: Feature 9.9 not found" and exits 3
+      Scenario: Removed
+        Given feature 1.3 is removed
+        When the user runs `almanac mv 1.2.1 --to 1.3`
+        Then it stops with "error: Feature 1.3 is removed" and exits 4
+      Scenario: A feature's destination
+        Given feature 2.1 is in category 2, category 3 is removed and there is no category 9
+        When the user runs `almanac mv 2.1` with `--to 2`, `--to 3`, `--to 9` or `--to 2.2`
+        Then it stops with "error: Feature 2.1 is already in category 2" (exit 4), "error: Category 3 is removed" (exit 4), "error: Category 9 not found" (exit 3) or `error: "2.2" is not a category ID` (exit 2)
+    source: [packages/core/src/mutations.ts#moveFeature, packages/core/src/mutations.ts#moveBehaviour]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "3.6.8"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "3.6.1"
+      - added: "3.6.2"
+      - added: "3.6.3"
+      - added: "3.6.4"
+      - added: "3.6.5"
+      - added: "3.6.6"
+      - added: "3.6.7"
+      - added: "3.6.8"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

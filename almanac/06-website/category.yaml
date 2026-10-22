@@ -1,0 +1,6 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/category.json
+id: 6
+name: Website
+description: A single page for reading the almanac, built from it.
+owner: ben
+next_feature: 11

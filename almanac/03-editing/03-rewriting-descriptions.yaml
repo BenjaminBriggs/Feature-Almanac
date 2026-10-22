@@ -1,0 +1,108 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "3.3"
+name: Rewriting descriptions
+description: Replace a description or a feature overview.
+owner: ben
+status: shipped
+platforms: [cli]
+next_behaviour: 8
+
+behaviours:
+  - id: "3.3.1"
+    name: Replace a description
+    description: |
+      Replaces the description of a behaviour, feature, category or variant.
+      Given behaviour 1.1.2 Bold formatting
+      When the user runs `almanac describe 1.1.2 --description "Makes the selected text bold, or the text typed next."`
+      Then it prints "Described 1.1.2 Bold formatting (01-editing/01-markdown-editor.yaml)"
+      And the feature's changelog gets "Updated the description of Bold formatting."
+      And for a variant, `almanac describe 1.1.1@android …` records "Updated the description of Bold formatting (Android)."
+    source: [packages/core/src/mutations.ts#describeEntity, packages/cli/src/commands/write.ts#registerWriteCommands]
+
+  - id: "3.3.2"
+    name: Text from a file or standard input
+    description: |
+      Takes the new text from a file or from standard input.
+      Scenario: From a file
+        When the user runs `almanac describe 1.1.2 --description-file bold.txt`
+        Then the description becomes the text of `bold.txt`
+      Scenario: From standard input
+        When the user runs `almanac describe 1.1.2 -` with the text piped in, for example from a heredoc
+        Then the description becomes the text read from standard input
+    source: [packages/cli/src/commands/write.ts#readDescription]
+
+  - id: "3.3.3"
+    name: Exactly one text source
+    description: |
+      Refuses text that is missing, given twice or in a file that can't be read.
+      Scenario: More than one source
+        When the user gives `almanac describe` more than one of `--description`, `--description-file` and `-`
+        Then it stops with "error: Use only one of --description, --description-file and -" and exits 2
+      Scenario: No text
+        When the user runs `almanac describe 1.1.2` with no text
+        Then it stops with "error: A description is required: --description, --description-file, or - to read stdin" and exits 2
+      Scenario: Unreadable file
+        When the user runs `almanac describe 1.1.2 --description-file missing.md` and the file doesn't exist
+        Then it stops with "error: Cannot read missing.md" and exits 2
+      Scenario: A stray argument
+        When the user passes an argument other than `-`, as in `almanac describe 1.1.2 bold.md`
+        Then it stops with `error: Unexpected argument "bold.md"` and exits 2
+    source: [packages/cli/src/commands/write.ts#readDescription]
+
+  - id: "3.3.4"
+    name: Feature overview
+    description: |
+      Writes a feature's longer overview, separate from its one-line description.
+      Given feature 1.1 Markdown editor
+      When the user runs `almanac describe 1.1 --overview --description-file overview.md`
+      Then the feature's `overview` is the text of `overview.md`
+      And its one-line description is unchanged
+      And the changelog says "Updated the overview of Markdown editor."
+    source: [packages/core/src/mutations.ts#describeEntity]
+
+  - id: "3.3.5"
+    name: Only features have an overview
+    description: |
+      Refuses an overview for anything but a feature.
+      When the user runs `almanac describe 1.1.2 --overview --description "More about bold text."`
+      Then it stops with "error: Only features have an overview; 1.1.2 is a behaviour" and exits 2
+    source: [packages/core/src/mutations.ts#describeEntity]
+
+  - id: "3.3.6"
+    name: The same text is refused
+    description: |
+      Refuses text that matches what's already there, ignoring trailing whitespace.
+      Given behaviour 1.1.2's description
+      When the user runs `almanac describe 1.1.2` with the same text, with or without a trailing newline
+      Then it stops with "error: Nothing to change: 1.1.2 already has this description" and exits 4
+      And no changelog entry is written
+    source: [packages/core/src/mutations.ts#describeEntity]
+
+  - id: "3.3.7"
+    name: Descriptions over the limit are refused
+    description: |
+      Refuses a feature description over 280 characters, and writes nothing.
+      When the user gives feature 1.1 a description 281 characters long
+      Then it prints "ALM-E009  description: Too big: expected string to have <=280 characters" with the file and line
+      And it stops with "error: Writing this description would introduce lint errors; nothing was written" and exits 1
+    source: [packages/cli/src/commands/write.ts#commitEdit, packages/schema/src/files.ts#featureSchema]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "3.3.3"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "3.3.1"
+      - added: "3.3.2"
+      - added: "3.3.3"
+      - added: "3.3.4"
+      - added: "3.3.5"
+      - added: "3.3.6"
+      - added: "3.3.7"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

@@ -1,0 +1,209 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "4.1"
+name: Lint
+description: Report errors and warnings with codes, files and lines.
+owner: ben
+status: shipped
+platforms: [cli]
+next_behaviour: 15
+
+behaviours:
+  - id: "4.1.1"
+    name: Problems listed with file and line
+    description: |
+      Lists every problem on its own line with its file, line, severity, code and message.
+      Given an almanac whose feature 1.1 depends on a feature 4.1 that doesn't exist
+      When the user runs `almanac lint`
+      Then lint prints "01-editing/01-markdown-editor.yaml:6  error  ALM-E008  depends_on 4.1 does not resolve to a feature"
+      And every other problem gets a line of the same shape, marked "error" or "warn", sorted by file and then line
+      And file paths are relative to the almanac folder
+      And the last line counts them, such as "1 error, 0 warnings"
+      And the command exits with code 1 because there is an error
+    source: [packages/cli/src/commands/check.ts#registerCheckCommands, packages/cli/src/context.ts#Context.diagnostics, packages/core/src/compile.ts#Compiler.finish]
+
+  - id: "4.1.2"
+    name: Warnings alone pass
+    description: |
+      Passes with exit code 0 when nothing is worse than a warning.
+      Given an almanac with warnings but no errors
+      When the user runs `almanac lint`
+      Then the warnings are listed and the command exits with code 0
+      And an almanac with no problems at all prints only "No problems."
+    source: [packages/cli/src/commands/check.ts#registerCheckCommands]
+
+  - id: "4.1.3"
+    name: Strict mode
+    description: |
+      Fails on warnings too, for CI.
+      Given an almanac with warnings but no errors
+      When the user runs `almanac lint --strict`
+      Then the warnings are listed and the command exits with code 1
+    source: [packages/cli/src/commands/check.ts#registerCheckCommands]
+
+  - id: "4.1.4"
+    name: JSON output
+    description: |
+      Gives the counts and every problem as data for scripts and agents.
+      Given an almanac with problems
+      When the user runs `almanac --json lint`
+      Then stdout is one JSON envelope with "command": "lint" and `data` holding `errors`, `warnings` and `fixed`
+      And each entry in `diagnostics` has `code`, `severity`, `message`, `file`, `line`, the entity's `id`, the YAML `path` (such as `behaviours[1].source[0]`) and `fixable`
+      And `ok` is false when lint fails, and the exit code is the same as without `--json`
+    source: [packages/cli/src/commands/check.ts#registerCheckCommands, packages/cli/src/context.ts#Context.envelope, packages/core/src/compile.ts#Sink]
+
+  - id: "4.1.5"
+    name: Broken files
+    description: |
+      Reports files that aren't valid YAML or don't fit the almanac's schema, and checks them no further.
+      Given an almanac file with broken YAML, an unknown key or a missing required field
+      When the user runs `almanac lint`
+      Then broken YAML is error ALM-E001, with the YAML parser's message and line
+      And an unknown key is ALM-E002, such as `Unknown key "colour"`
+      And a missing field is ALM-E006, such as `Missing required field "name"`
+      And a value of the wrong type is ALM-E009
+      And a numbered folder without a category.yaml is ALM-E006, "Category folder 03-later has no category.yaml"
+      But nothing else in a file with one of these errors is checked until it is fixed
+      And the feature files in a category folder whose category.yaml is missing or broken get only these checks and the duplicate-ID check
+    source: [packages/core/src/compile.ts#Compiler.validateFile, packages/core/src/schema-check.ts#validate, packages/core/src/compile.ts#Compiler.loadCategory]
+
+  - id: "4.1.6"
+    name: Settings problems
+    description: |
+      Reports problems in the settings in almanac.yaml.
+      Given an almanac.yaml with a problem in its settings
+      When the user runs `almanac lint`
+      Then an almanac with no platforms is ALM-E006, "At least one platform is required"
+      And a platform group with the same name as a platform is ALM-E009, and a group member that isn't a platform is ALM-E034
+      And a `statuses` list without "removed" is ALM-E009, `statuses must include "removed"`
+      And a `formats.default` that isn't in `formats.allowed` is ALM-E007
+      And an enum custom field with no values is ALM-E006
+    source: [packages/core/src/compile.ts#Compiler.loadConfig]
+
+  - id: "4.1.7"
+    name: ID problems
+    description: |
+      Reports IDs that aren't quoted, have the wrong shape or parent, are used twice or are out of order.
+      Given a feature file with problems in its IDs
+      When the user runs `almanac lint`
+      Then an ID written as a number is ALM-E003, "id must be a quoted string, got the number 1.1"
+      And an ID of the wrong shape, or under the wrong parent, is ALM-E004, such as "Behaviour 1.2.2 is not under feature 1.1"
+      And an ID used twice is ALM-E005, "Duplicate ID 1.1.2: … collides with …", including an ID that another entity lists in `formerly`
+      And behaviours out of ID order are ALM-E010, "Behaviours of 1.1 are not in ID order"
+      And a file or folder whose name doesn't match its ID and name is warning ALM-W001, such as "File should be named 01-markdown-editor.yaml"
+    source: [packages/core/src/compile.ts#Compiler.registerIds, packages/core/src/compile.ts#Compiler.processFeature, packages/core/src/compile.ts#Compiler.processBehaviour, packages/core/src/schema-check.ts#validate]
+
+  - id: "4.1.8"
+    name: ID counters
+    description: |
+      Reports an ID counter that is missing or would hand out an ID that is already used.
+      Given feature 1.1 whose `next_behaviour` is 2 while behaviour 1.1.3 exists
+      When the user runs `almanac lint`
+      Then lint reports error ALM-E012, "next_behaviour is 2 but 1.1.3 is already used"
+      And a missing `next_category`, `next_feature` or `next_behaviour` is ALM-E006, such as "Missing next_behaviour; IDs are allocated from it"
+      And IDs of removed entities, former IDs and IDs in files that fail the schema all count as used
+      But IDs in a file that isn't valid YAML don't count, because lint can't read them
+    source: [packages/core/src/compile.ts#Compiler.checkCounters, packages/core/src/compile.ts#Compiler.registerLenient]
+
+  - id: "4.1.9"
+    name: Broken references
+    description: |
+      Reports references to features, behaviours or former IDs that don't exist.
+      Given feature 1.1 whose `depends_on` names 4.1, which doesn't exist
+      When the user runs `almanac lint`
+      Then lint reports error ALM-E008, "depends_on 4.1 does not resolve to a feature"
+      And `related` is checked the same way
+      And a changelog change that names a behaviour or variant that doesn't exist is ALM-E008, such as "Changelog added 1.1.9 does not resolve to a behaviour or variant"
+      And a `moved` change whose `from` isn't a former ID of its `to` is ALM-E008
+    source: [packages/core/src/compile.ts#Compiler.processFeature, packages/core/src/compile.ts#Compiler.checkChangelogRefs]
+
+  - id: "4.1.10"
+    name: Platform and status problems
+    description: |
+      Reports unknown platforms, platforms outside the parent's, overlapping variants and values outside the vocabulary.
+      Given a behaviour with platforms or a status that its feature or almanac.yaml doesn't allow
+      When the user runs `almanac lint`
+      Then an unknown platform or group is error ALM-E034, such as `Unknown platform or group "web"`
+      And a behaviour platform outside its feature's is ALM-E030, such as "Behaviour 1.1.3 includes @android, not in feature platforms [ios]", and a variant platform outside its behaviour's is ALM-E031
+      And two variants of one behaviour on the same platform are ALM-E032
+      And a status or since value for a platform the entity isn't on, or a feature status map that leaves out one of its platforms, is ALM-E033
+      And a status, format, link type or enum field value outside its allowed list is ALM-E007, such as `Status "done" is not one of planned, in-progress, shipped, deprecated, removed`
+    source: [packages/core/src/compile.ts#Compiler.expand, packages/core/src/compile.ts#Compiler.checkStatus, packages/core/src/compile.ts#Compiler.checkPlatMapKeys, packages/core/src/compile.ts#Compiler.processBehaviour, packages/core/src/compile.ts#Compiler.checkFields]
+
+  - id: "4.1.11"
+    name: Removal problems
+    description: |
+      Reports removals with no reason, and live content under a removed parent.
+      Given behaviour 1.1.3 with status removed and no `removed_reason`
+      When the user runs `almanac lint`
+      Then lint reports error ALM-E011, "Behaviour 1.1.3 is removed without removed_reason"
+      And categories, features and variants are checked the same way
+      And a removed category that still has a live feature is ALM-E013, such as "Category 2 is removed but feature 2.1 is not"
+      And a behaviour or variant that declares a status other than removed on a platform where its parent is removed is warning ALM-W018, because it resolves as removed anyway
+    source: [packages/core/src/compile.ts#Compiler.processBehaviour, packages/core/src/compile.ts#Compiler.checkCategoryRemoval, packages/core/src/compile.ts#inheritStatus]
+
+  - id: "4.1.12"
+    name: Changelog problems
+    description: |
+      Reports changelogs that are out of order or empty, and behaviours never recorded as added.
+      Given a feature whose changelog has problems
+      When the user runs `almanac lint`
+      Then an entry dated after the one above it is error ALM-E040, such as "Changelog entry 2026-10-22 is newer than the entry above it (2026-10-01)"
+      And an entry with no changes is ALM-E040, and a change without exactly one of added, modified, removed, moved or feature is ALM-E009
+      And a feature with no changelog entries is ALM-E006
+      And a behaviour that no entry lists as added is warning ALM-W012, such as "Behaviour 1.2.2 never appears as added in a changelog"
+      But a variant is only reported when neither it nor its behaviour is listed as added, so a variant added later without an entry of its own passes
+    source: [packages/core/src/compile.ts#Compiler.checkChangelogShape, packages/core/src/compile.ts#Compiler.checkChangelogRefs]
+
+  - id: "4.1.13"
+    name: Content warnings
+    description: |
+      Warns about thin descriptions, empty or crowded features, unknown owners and unexplained rejections.
+      Given an almanac with short descriptions and a feature with no behaviours
+      When the user runs `almanac lint`
+      Then a description that is empty or under 20 characters is warning ALM-W016, such as "Behaviour 1.1.1 description is under 20 characters"
+      And a feature with no behaviours is ALM-W017, such as "Feature 4.5 has no behaviours yet", unless the feature is removed
+      And a feature with more than 20 live behaviours is ALM-W014, and `lint.max_behaviours_per_feature` in almanac.yaml changes the limit
+      And an owner missing from `owners` is ALM-W010, which `lint.require_owner` can make an error or turn off
+      And a rejected review with no note is error ALM-E014, "Behaviour 1.1.1 is rejected without a note saying why"
+    source: [packages/core/src/compile.ts#Compiler.checkDescription, packages/core/src/compile.ts#Compiler.processFeature, packages/core/src/compile.ts#Compiler.checkOwner, packages/core/src/config.ts#resolveConfig]
+
+  - id: "4.1.14"
+    name: Comparing with a git ref
+    description: |
+      Will compare the almanac with another commit to catch reused or vanished IDs; for now the option is refused.
+      Given an almanac in a git repository
+      When the user runs `almanac lint --against main`
+      Then lint also reports IDs reused or gone since that commit, as ALM-E020, ALM-E021 and ALM-W020
+      But until git history support arrives in v0.3, the command stops with exit code 2 and "error: --against needs git history support, which arrives in v0.3"
+    status: planned
+    source: [packages/cli/src/commands/check.ts#registerCheckCommands, packages/schema/src/diagnostics.ts#RULES]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "4.1.5"
+      - modified: "4.1.8"
+      - modified: "4.1.11"
+      - modified: "4.1.12"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "4.1.1"
+      - added: "4.1.2"
+      - added: "4.1.3"
+      - added: "4.1.4"
+      - added: "4.1.5"
+      - added: "4.1.6"
+      - added: "4.1.7"
+      - added: "4.1.8"
+      - added: "4.1.9"
+      - added: "4.1.10"
+      - added: "4.1.11"
+      - added: "4.1.12"
+      - added: "4.1.13"
+      - added: "4.1.14"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

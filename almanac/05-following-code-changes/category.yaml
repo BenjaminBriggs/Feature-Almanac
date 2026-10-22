@@ -1,0 +1,6 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/category.json
+id: 5
+name: Following code changes
+description: Working out what a code change means for the almanac.
+owner: ben
+next_feature: 4

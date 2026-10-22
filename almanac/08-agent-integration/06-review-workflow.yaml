@@ -1,0 +1,119 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "8.6"
+name: Review workflow
+description: Record a reviewer's decisions and work through the rejections.
+owner: ben
+status: shipped
+platforms: [agents]
+next_behaviour: 9
+
+behaviours:
+  - id: "8.6.1"
+    name: Start with a decisions file
+    description: |
+      Hands the agent a reviewer's decisions file downloaded from the almanac website.
+      Given the workflows are installed for the user's agent
+      And the user has a decisions file such as `review-pd-sam-price-2026-10-20.json`
+      When the user runs the review workflow with that file
+      Then the agent records the decisions and works through the rejections
+    source: [packages/cli/assets/agent/workflows/review.md, packages/cli/src/commands/agent.ts#TOOLS]
+    variants:
+      - platforms: [claude]
+        description: In Claude Code the user types `/almanac-review` followed by the file.
+        source: [packages/cli/src/commands/agent.ts#TOOLS]
+      - platforms: [copilot]
+        description: In Copilot Chat the user types `/almanac-review` followed by the file, and the prompt runs in agent mode.
+        source: [packages/cli/src/commands/agent.ts#TOOLS]
+      - platforms: [codex]
+        description: In Codex the user types `$almanac-review` with the file, or just gives Codex the file or asks it to deal with rejected behaviours, and Codex picks the skill up itself.
+        source: [packages/cli/src/commands/agent.ts#TOOLS]
+
+  - id: "8.6.2"
+    name: Records the reviewer's decisions
+    description: |
+      Applies the decisions file so each approval and rejection is stored with the reviewer's name, date and note.
+      Given a decisions file
+      When the review workflow starts
+      Then the agent runs `almanac --dry-run apply <file>` and then `almanac apply <file>`
+      And it notes what was recorded
+      But it doesn't commit unless the user asks
+    source: [packages/cli/assets/agent/workflows/review.md]
+
+  - id: "8.6.3"
+    name: Reports decisions on changed text
+    description: |
+      Tells the user which decisions weren't recorded because the behaviour changed after the reviewer saw it.
+      Given the decisions file has a decision on a behaviour whose text changed after the reviewer read it
+      When the agent applies the file
+      Then that decision is skipped, and the agent lists the behaviour for the user as back in the reviewer's queue
+      But it records nothing for that behaviour itself
+    source: [packages/cli/assets/agent/workflows/review.md]
+
+  - id: "8.6.4"
+    name: Works through recorded rejections
+    description: |
+      Gathers every open rejection, this file's first.
+      When the decisions are recorded, or the user runs the review workflow without a file
+      Then the agent lists the current rejections with `almanac list --review rejected --json`, each with the reviewer's note
+      And it deals with the rejections from this file first, and mentions any older ones still open
+    source: [packages/cli/assets/agent/workflows/review.md]
+
+  - id: "8.6.5"
+    name: Corrects a behaviour that misdescribes the code
+    description: |
+      Fixes the behaviour when the reviewer is right that it doesn't match the code.
+      Given a rejected behaviour that doesn't describe what its cited code does
+      When the agent triages the rejection
+      Then it corrects the behaviour to match the code in a patch summarised "Corrected after review."
+      And it tells the user the behaviour is back in the reviewer's queue, because its review lapses when its text changes
+    source: [packages/cli/assets/agent/workflows/review.md]
+
+  - id: "8.6.6"
+    name: Drafts a ticket when the product wants different behaviour
+    description: |
+      Leaves the almanac alone and drafts a ticket when the code itself is what the reviewer disagrees with.
+      Given a rejected behaviour that correctly describes the code
+      When the agent triages the rejection
+      Then it drafts a ticket with a title, the behaviour ID, what happens now, what the reviewer wants (their note) and the cited files and symbols
+      But it doesn't change the behaviour, and files the ticket only if the user asks, with `gh issue create`
+    source: [packages/cli/assets/agent/workflows/review.md]
+
+  - id: "8.6.7"
+    name: Asks the reviewer when it's unclear
+    description: |
+      Writes a question instead of guessing.
+      Given a rejection whose note is ambiguous, contradicts another behaviour, or asks something the code can't settle such as wording, scope or priority
+      When the agent triages the rejection
+      Then it writes the question it would put to the reviewer
+      But it changes nothing for that behaviour
+    source: [packages/cli/assets/agent/workflows/review.md]
+
+  - id: "8.6.8"
+    name: Ends with a verdict for every rejection
+    description: |
+      Reports what it did or proposes for each rejection.
+      When the agent has triaged every rejection
+      Then it runs `almanac lint`, fixing every error
+      And it shows a table of ID, name, the reviewer's note, the verdict (almanac corrected, code change needed, or question) and what it did or proposes
+      And below the table it lists the skipped decisions, the drafted tickets in full and the questions for the reviewer
+    source: [packages/cli/assets/agent/workflows/review.md]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "8.6.1"
+      - added: "8.6.1@claude"
+      - added: "8.6.1@copilot"
+      - added: "8.6.1@codex"
+      - added: "8.6.2"
+      - added: "8.6.3"
+      - added: "8.6.4"
+      - added: "8.6.5"
+      - added: "8.6.6"
+      - added: "8.6.7"
+      - added: "8.6.8"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

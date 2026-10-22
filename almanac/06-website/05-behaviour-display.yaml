@@ -1,0 +1,90 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "6.5"
+name: Behaviour display
+description: Each behaviour's summary, steps, platforms, variants and status.
+owner: ben
+status: shipped
+platforms: [web]
+next_behaviour: 7
+
+behaviours:
+  - id: "6.5.1"
+    name: Behaviour rows
+    description: |
+      Lists each behaviour with its reference, name and review tag.
+      Given a feature's panel is open
+      When the user reads its behaviours
+      Then each one shows its reference, as in "FA-6.5.1", in a column as wide as the longest reference, then its name and a tag with its review state: "Approved", "Rejected", "Changed since review" or "Not reviewed"
+      And on windows 560px wide or narrower the reference sits above the name instead of beside it
+    source: [packages/site/src/render.ts#renderBehaviour, packages/site/assets/site.css]
+
+  - id: "6.5.2"
+    name: Summary and steps
+    description: |
+      Shows the summary line, then the Given/When/Then steps.
+      Given a behaviour written as Given/When/Then
+      When the user reads it
+      Then its one-line summary comes first, then its steps as a shaded list with each keyword ("Given", "When", "Then", "And", "But") in red
+      And a behaviour with named scenarios shows each scenario's name above its steps
+    source: [packages/site/src/render.ts#renderBehaviour, packages/site/assets/site.css]
+
+  - id: "6.5.3"
+    name: Prose behaviours
+    description: |
+      Shows a behaviour that isn't Given/When/Then as formatted text.
+      Given a behaviour written as prose, or one whose steps don't parse
+      When the user reads it
+      Then its description shows as paragraphs and bulleted or numbered lists, with code, bold, italics and links formatted
+      But any HTML in it is shown as text rather than run
+    source: [packages/site/src/render.ts#renderBehaviour, packages/site/src/html.ts#renderMarkdown]
+
+  - id: "6.5.4"
+    name: Differences from the feature
+    description: |
+      Notes where a behaviour's platforms, status or version differ from its feature's.
+      Given a behaviour whose platforms, status or "since" version differ from its feature's
+      When the user reads it
+      Then a line under it says how, such as "Only on iOS", "Coming soon on iOS", "Since 2.1" or "Since 2.1 on iOS, 3.0 on Android", using the site's status labels
+      But a behaviour that matches its feature has no such line, and a platform whose status a variant sets is left to the variant
+    source: [packages/site/src/render.ts#behaviourNotes]
+
+  - id: "6.5.5"
+    name: Variants
+    description: |
+      Lists each platform's difference under the behaviour.
+      Given a behaviour with variants
+      When the user reads it
+      Then each variant is a line starting with its platforms joined by "&", then a dash and its description, as in "Android — From the formatting bar."
+      And a variant that sets its own status, the same on all its platforms, shows it in brackets, as in "(in progress)"
+      And a variant that replaces the behaviour's text starts with "Instead:"
+      But variants removed on all their platforms aren't shown
+    source: [packages/site/src/render.ts#renderVariant, packages/site/src/render.ts#renderBehaviour]
+
+  - id: "6.5.6"
+    name: Removed behaviours
+    description: |
+      Keeps removed behaviours collapsed at the end of the panel.
+      Given a feature with behaviours removed on every platform
+      When the user opens its panel
+      Then they're collapsed under "<n> removed behaviours" after the others, and left out of the card's and panel's counts
+      And expanding it shows each one greyed out with "Removed:" and the reason, without a review tag or notes
+    source: [packages/site/src/render.ts#renderPanel, packages/site/src/render.ts#renderBehaviour]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "6.5.5"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "6.5.1"
+      - added: "6.5.2"
+      - added: "6.5.3"
+      - added: "6.5.4"
+      - added: "6.5.5"
+      - added: "6.5.6"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added

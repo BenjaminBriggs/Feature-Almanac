@@ -1,0 +1,121 @@
+# yaml-language-server: $schema=https://feature-almanac.dev/schema/v1/feature.json
+id: "6.2"
+name: Live preview
+description: Serve the site locally and reload it when an almanac file changes.
+owner: ben
+status: shipped
+platforms: [cli]
+next_behaviour: 10
+
+behaviours:
+  - id: "6.2.1"
+    name: Serve the site
+    description: |
+      Serves the site on this computer at port 4173.
+      When the user runs `almanac site serve`
+      Then the site is served at http://127.0.0.1:4173/ and it prints "Serving http://127.0.0.1:4173/ — watching almanac; Ctrl-C to stop"
+      And the almanac's lint findings are printed once, to standard error
+      But the site can only be reached from this computer, and nothing is written to disk
+    source: [packages/cli/src/commands/site.ts#registerSiteCommands, packages/site/src/serve.ts#startDevServer]
+
+  - id: "6.2.2"
+    name: Open in the browser
+    description: |
+      Opens the served site in the default browser with `--open`.
+      When the user runs `almanac site serve --open`
+      Then the site opens in the default web browser once the server is running
+    source: [packages/cli/src/commands/site.ts#registerSiteCommands, packages/cli/src/io.ts#nodeIo]
+
+  - id: "6.2.3"
+    name: Choose the port
+    description: |
+      Serves on another port with `--port`.
+      When the user runs `almanac site serve --port 8080`
+      Then the site is served at http://127.0.0.1:8080/ instead
+      And `--port 0` picks any free port and prints the address it chose
+      But a port that isn't a whole number from 0 to 65535 stops it with "Invalid port" and exit code 2
+    source: [packages/cli/src/commands/site.ts#registerSiteCommands]
+
+  - id: "6.2.4"
+    name: Port already in use
+    description: |
+      Fails with an internal error when the port is taken.
+      Given another program is already listening on port 4173
+      When the user runs `almanac site serve`
+      Then it stops with "internal error: Error: listen EADDRINUSE: address already in use 127.0.0.1:4173" followed by a stack trace
+      And the command exits with code 5
+    source: [packages/site/src/serve.ts#startDevServer, packages/cli/src/context.ts#Context]
+
+  - id: "6.2.5"
+    name: Reload on change
+    description: |
+      Rebuilds the site and reloads open pages when an almanac file changes.
+      Given the site is being served and is open in a browser
+      When any file in the almanac folder is saved, by hand or by an `almanac` command
+      Then the site is rebuilt once changes have been quiet for 80 ms, and every open page reloads itself
+      And it prints "rebuilt (0 errors, 2 warnings)" with the new lint counts
+      But changes to hidden files and folders, or inside a `dist/` folder, are ignored
+    source: [packages/site/src/serve.ts#startDevServer, packages/cli/src/io.ts#nodeIo, packages/site/src/render.ts#renderSite]
+
+  - id: "6.2.6"
+    name: Reload keeps the reader's place
+    description: |
+      Brings back the open panel and the search after a reload.
+      Given a reader has a feature's panel open, a search typed, or both
+      When the page reloads after a change
+      Then the same panel opens again, without the unfold animation, and the same search runs again, because both are kept in the page's address
+    source: [packages/site/assets/site.js#route, packages/site/assets/site.js#syncUrl]
+
+  - id: "6.2.7"
+    name: Failed rebuild
+    description: |
+      Keeps serving the last good build when a change breaks the almanac.
+      Given the site is being served
+      When a change leaves `almanac.yaml` missing or invalid
+      Then it prints "rebuild failed: almanac.yaml is missing or invalid"
+      And open pages don't reload and the server keeps serving the last good build
+      And the next change that fixes it rebuilds and reloads as usual
+    source: [packages/site/src/serve.ts#startDevServer, packages/cli/src/commands/site.ts#registerSiteCommands]
+
+  - id: "6.2.8"
+    name: Compiled almanac and other addresses
+    description: |
+      Answers for the compiled almanac too, and never lets the browser cache.
+      Given the site is being served
+      When the browser asks for /almanac.json
+      Then it gets the compiled almanac as JSON, the same file `site build` writes
+      And any other address apart from the page answers "Not found"
+      And the page and the compiled almanac tell the browser not to cache them, so a plain reload always shows the latest build
+    source: [packages/site/src/serve.ts#startDevServer]
+
+  - id: "6.2.9"
+    name: Stop the server
+    description: |
+      Stops serving on Ctrl-C.
+      Given the site is being served
+      When the user presses Ctrl-C
+      Then the server stops, open pages lose their connection to it, and the command exits with code 0
+    source: [packages/cli/src/commands/site.ts#registerSiteCommands, packages/cli/src/io.ts#nodeIo, packages/site/src/serve.ts#startDevServer]
+
+changelog:
+  - date: "2026-10-22"
+    summary: Verified against code.
+    changes:
+      - modified: "6.2.5"
+      - modified: "6.2.8"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - added: "6.2.1"
+      - added: "6.2.2"
+      - added: "6.2.3"
+      - added: "6.2.4"
+      - added: "6.2.5"
+      - added: "6.2.6"
+      - added: "6.2.7"
+      - added: "6.2.8"
+      - added: "6.2.9"
+  - date: "2026-10-22"
+    summary: Initial almanac.
+    changes:
+      - feature: added
