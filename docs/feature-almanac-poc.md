@@ -249,11 +249,23 @@ Behaviour `PD-3.3.2` from the Painting Desk trial, as stored in `almanac/03-pain
 ```yaml
 - id: "3.3.2"
   name: Search from three characters, after a half-second pause
-  description: Nothing is searched until three characters are typed, and then only once typing has paused for 500 ms; each new keystroke restarts the wait. The clear button (an x in the field) empties it.
+  description: |
+    The search runs only once the user pauses typing, not on every keystroke.
+    Scenario: Searching
+    Given the user is typing in the search field
+    When at least three characters are typed and typing pauses for 500 ms
+    Then the search runs
+    But each new keystroke restarts the wait
+    Scenario: Clearing
+    When the user taps the clear button (an x in the field)
+    Then the field is emptied
+  format: gherkin
   source:
     - PaintingDesk/Paints/AddPaints/AddPaintsSheet.swift#AddPaintsSheet.search
     - PaintingDesk/Paints/AddPaints/AddPaintsSearchBar.swift#AddPaintsSearchBar
 ```
+
+The first line of the description is a plain summary, shown above the steps on the site. Given/When/Then is the default format; `format: gherkin` here is left over from the conversion.
 
 ## Appendix B. Commands at a glance
 

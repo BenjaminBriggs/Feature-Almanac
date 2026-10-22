@@ -30,7 +30,7 @@ The root holds `almanac.yaml` (product, prefix, platforms, statuses). Find it wi
 
 Write each behaviour's description as one plain summary line followed by Gherkin (cucumber) steps. Gherkin is the default format, so these behaviours need no `format` field. Plain prose is still allowed for a behaviour with no trigger at all, such as a fixed fact about a screen, and needs `format: prose`.
 
-- **Summary**: the first line, one sentence saying what the behaviour does, in words a support agent would use. The site shows it above the steps. Don't repeat the `name`, and leave the details to the steps.
+- **Summary**: the first line, one sentence saying what the behaviour does, in words a support agent would use. The site shows it above the steps. Don't repeat the `name`, leave the details to the steps, and don't start it with Given, When, Then, And or But, or it's read as a step.
 
 - **Given**: where the user starts. What's on screen, what data exists, what they've already done. Leave it out when nothing needs to be true first.
 - **When**: the one thing that happens, such as a tap, click, keystroke, gesture, notification or time passing. Name controls by their visible label, in quotes.
