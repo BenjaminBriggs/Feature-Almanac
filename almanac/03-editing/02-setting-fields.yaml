@@ -59,7 +59,8 @@ behaviours:
       Then it prints "Updated 1.1.1@android (01-editing/01-markdown-editor.yaml)"
       And the changelog says "Set status → in-progress on Bold formatting (Android)."
       And when new `platforms` put another platform first, the printed ref follows it, for example `1.1.1@ios` after `platforms=ios,android`
-    source: [packages/core/src/mutations.ts#setValues]
+      And when new `platforms` drop the platform the ref names, as `platforms=ios` does, the feature's earlier changelog entries for the variant follow it to `1.1.1@ios`
+    source: [packages/core/src/mutations.ts#setValues, packages/core/src/mutations.ts#repointVariantRefs]
 
   - id: "3.2.6"
     name: Keys each level accepts
@@ -107,6 +108,7 @@ behaviours:
         Given almanac.yaml has no windows platform
         When the user runs `almanac set 1.1.2 status.windows=shipped`
         Then it stops with `error: Unknown platform "windows" in status.windows` and exits 2
+        And `platforms=ios,windows` stops with `error: Unknown platform or group "windows"; known: …`, listing the platforms and groups, and exits 2
       Scenario: A suffix on a key that takes none
         When the user runs `almanac set 1.1.2 tags.x=core`
         Then it stops with "error: tags.x: only status.<platform>, since.<platform> and fields.<key> take a suffix" and exits 2
@@ -135,11 +137,17 @@ behaviours:
       Given the almanac uses the default statuses
       When the user runs `almanac set 1.1 status=bogus`
       Then it prints `ALM-E007  Status "bogus" is not one of planned, in-progress, shipped, deprecated, removed` with the file and line
-      And it stops with "error: Writing setting these values would introduce lint errors; nothing was written" and exits 1
+      And it stops with "error: Writing these values would introduce lint errors; nothing was written" and exits 1
       And narrowing a feature's `platforms` while a behaviour still has a status for a dropped platform is refused the same way (ALM-E033)
     source: [packages/cli/src/commands/write.ts#commitEdit, packages/core/src/transaction.ts#commitChanges]
 
 changelog:
+  - date: "2026-10-22"
+    summary: Fixes from writing Feature Almanac's own almanac.
+    changes:
+      - modified: "3.2.5"
+      - modified: "3.2.9"
+      - modified: "3.2.11"
   - date: "2026-10-22"
     summary: Verified against code.
     changes:

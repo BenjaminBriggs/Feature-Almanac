@@ -24,8 +24,7 @@ export function parseGherkin(description: string): GherkinResult {
   try {
     document = parser.parse(source)
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    return { ok: false, message: (message.split('\n')[0] ?? message).replace(/^\(\d+:\d+\):\s*/, '') }
+    return { ok: false, message: parserMessage(error, named ? 1 : 2, description.split('\n').length) }
   }
 
   const scenarios: GherkinScenario[] = []
@@ -49,4 +48,18 @@ export function parseGherkin(description: string): GherkinResult {
   const lead = named ? document.feature?.description : document.feature?.children[0]?.scenario?.description
   const summary = (lead ?? '').split('\n').map((line) => line.trim()).filter((line) => line !== '').join(' ')
   return summary === '' ? { ok: true, scenarios } : { ok: true, scenarios, summary }
+}
+
+type ParserError = { message: string; location?: { line?: number } }
+
+/**
+ * The parser's first complaint, with its line counted from the top of the description rather than the synthetic
+ * wrapper (`offset` lines above it). The parser throws a composite error whose own message is only a heading.
+ */
+function parserMessage(error: unknown, offset: number, lines: number): string {
+  const errors = (error as { errors?: readonly ParserError[] }).errors
+  const first: ParserError = errors?.[0] ?? (error instanceof Error ? (error as ParserError) : { message: String(error) })
+  const text = first.message.replace(/^\(\d+:\d+\):\s*/, '')
+  const line = (first.location?.line ?? 0) - offset
+  return line >= 1 && line <= lines ? `the Gherkin parser rejects line ${line}: ${text}` : `the Gherkin parser rejects it: ${text}`
 }

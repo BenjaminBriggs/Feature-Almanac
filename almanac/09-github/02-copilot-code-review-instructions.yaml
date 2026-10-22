@@ -111,11 +111,15 @@ behaviours:
       Given Copilot comments about the almanac on a pull request
       When it suggests a change to a behaviour
       Then the comment cites the behaviour ID, such as "`PD-3.3.2` (Bold formatting) says … but `Editor.swift#toggleBold` now …", and suggests the corrected description when it can
-      And it leaves the author to apply it with `/almanac-update` or `almanac apply`
+      And it leaves the author to apply it with the update workflow (`/almanac-update`, or `$almanac-update` in Codex) or `almanac apply`
       But it doesn't suggest editing the almanac YAML by hand
     source: [packages/cli/assets/agent/github/almanac.instructions.md]
 
 changelog:
+  - date: "2026-10-22"
+    summary: Fixes from writing Feature Almanac's own almanac.
+    changes:
+      - modified: "9.2.11"
   - date: "2026-10-22"
     summary: Initial almanac.
     changes:

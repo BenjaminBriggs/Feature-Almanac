@@ -54,7 +54,7 @@ It matches the changed files against every live behaviour's `source` (variants i
 - the changed files nothing cites;
 - whether the change also edits the almanac.
 
-Paths come from git relative to the repository and are matched relative to `code.path`. `--json` gives the same as data for agents and scripts.
+Paths come from git relative to the repository and are matched relative to `code.path`. An almanac edit is any change in the almanac folder, except when that folder also holds the code (a standalone almanac at the top of its repository): then only `almanac.yaml` and the YAML files in category folders count. `--json` gives the same as data for agents and scripts.
 
 ## In CI
 

@@ -105,6 +105,23 @@ describe('set', () => {
     expect(read(FEATURE)).toContain('      - modified: "1.1.1@android"')
   })
 
+  it('moves a variant off its first platform, repointing the changelog entries that name it', () => {
+    const files = { ...FILES, [FEATURE]: (BASE[FEATURE] ?? '').replace('      - added: "1.1.2"\n', '      - added: "1.1.2"\n      - modified: "1.1.1@android"\n') }
+    const { read, mutation } = apply(files, (c) => setValues(c, { ref: '1.1.1@android', values: parseAssignments(['platforms=macos']), now: NOW }))
+    expect(mutation.id).toBe('1.1.1@macos')
+    expect(read(FEATURE)).toContain('      - platforms: [macos]\n')
+    expect(read(FEATURE)).toContain('    summary: Autosave.\n    changes:\n      - added: "1.1.2"\n      - modified: "1.1.1@macos"\n')
+    expect(read(FEATURE)).not.toContain('1.1.1@android')
+  })
+
+  it('summarises maps and lists in the changelog', () => {
+    const { compilation } = open()
+    const summary = (values: Record<string, unknown>) => setValues(compilation, { ref: '1.1', values, now: NOW }).changelog?.[0]?.summary
+    expect(summary({ links: '[{"type":"docs","title":"Guide","url":"https://example.com"}]' })).toBe('Set links on Editor.')
+    expect(summary({ status: '{"ios":"shipped","android":"planned","macos":"shipped"}' })).toBe('Set status → ios shipped, android planned, macos shipped on Editor.')
+    expect(summary({ tags: 'core,notes', owner: '' })).toBe('Set tags → core, notes; owner → none on Editor.')
+  })
+
   it('refuses keys it does not own, and edits that change nothing', () => {
     const { compilation } = open()
     const set = (ref: string, values: Record<string, unknown>) => () => setValues(compilation, { ref, values, now: NOW })
@@ -115,6 +132,8 @@ describe('set', () => {
     expect(set('1.1.1', { owner: 'ben' })).toThrow('owner is not settable on a behaviour')
     expect(set('1.1.1', { 'tags.x': 'a' })).toThrow('only status.<platform>')
     expect(set('1.1.1', { 'status.web': 'shipped' })).toThrow('Unknown platform "web"')
+    expect(set('1.1.1@android', { platforms: 'web' })).toThrow('Unknown platform or group "web"; known: ios, android, macos, apple')
+    expect(set('1.1', { platforms: 'ios,!web' })).toThrow('Unknown platform or group "!web"')
     expect(set('1.1', { status: 'removed' })).toThrow('use almanac remove 1.1 --reason')
     expect(set('1.1', { tags: 7 })).toThrow('tags must be a list of strings')
     expect(set('1.1', { status: 'shipped' })).toThrow(InvalidStateError)

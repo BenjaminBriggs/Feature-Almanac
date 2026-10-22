@@ -27,9 +27,8 @@ behaviours:
       When the action builds the site
       Then the step fails, and the job stops there unless later steps are set to run anyway
       And the site files are still written, unless `almanac.yaml` itself is missing or invalid
-      But two features or two behaviours that share an ID stop the build with "internal error: Error: MiniSearch: duplicate ID …" before any site file is written
       And warnings alone don't fail it
-    source: [action.yml, packages/cli/src/commands/site.ts#registerSiteCommands, packages/site/src/search.ts#buildSearchIndex]
+    source: [action.yml, packages/cli/src/commands/site.ts#registerSiteCommands]
 
   - id: "9.1.3"
     name: almanac on PATH for later steps
@@ -75,6 +74,10 @@ behaviours:
     source: [action.yml]
 
 changelog:
+  - date: "2026-10-22"
+    summary: Fixes from writing Feature Almanac's own almanac.
+    changes:
+      - modified: "9.1.2"
   - date: "2026-10-22"
     summary: Verified against code.
     changes:

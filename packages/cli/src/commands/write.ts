@@ -186,7 +186,7 @@ export function registerWriteCommands(program: Command, wrap: Wrap): void {
       wrap('set', (ctx, ref: string, assignments: string[], options: EditFlags) => {
         const compilation = ctx.compile()
         const mutation = setValues(compilation, { ref, values: parseAssignments(assignments), ...edit(ctx, options) })
-        return commitEdit(ctx, compilation, mutation, (id, name) => `Updated ${id} ${name}`, 'setting these values')
+        return commitEdit(ctx, compilation, mutation, (id, name) => `Updated ${id} ${name}`, 'these values')
       }),
     )
 
@@ -249,9 +249,10 @@ export function registerWriteCommands(program: Command, wrap: Wrap): void {
     .action(
       wrap('mv', (ctx, ref: string, options: EditFlags & { to: string }) => {
         const compilation = ctx.compile()
+        // moveEntity first: it refuses a broken almanac.yaml, which lookup would report as a missing entity.
+        const mutation = moveEntity(compilation, { ref, to: options.to, ...edit(ctx, options) })
         const from = lookup(compilation, ref).target
         const fromId = from.kind === 'feature' ? from.feature.model.id : from.kind === 'behaviour' ? from.behaviour.model.id : ref
-        const mutation = moveEntity(compilation, { ref, to: options.to, ...edit(ctx, options) })
         return commitEdit(ctx, compilation, mutation, (id, name) => `Moved ${fromId} → ${id} ${name}`, 'this move', { from: fromId })
       }),
     )

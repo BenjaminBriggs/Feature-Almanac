@@ -570,6 +570,8 @@
         ref: row.querySelector('.chip').textContent,
         hash: row.dataset.hash,
         review: row.dataset.review || '',
+        reviewBy: row.dataset.reviewBy || '',
+        reviewNote: row.dataset.reviewNote || '',
         panel: panel,
         feature: panel.dataset.feature,
         category: row.closest('.category').dataset.category,
@@ -598,16 +600,11 @@
   }
 
   // A decision on text that has changed since no longer applies; one the almanac already records is done.
-  var decisions = {}
-  var dropped = 0
-  var stored = readStore(REVIEW_KEY, {})
-  Object.keys(stored).forEach(function (id) {
-    var item = byId[id]
-    if (item === undefined || item.hash !== stored[id].hash) dropped++
-    else if (item.review !== stored[id].state) decisions[id] = stored[id]
-  })
-  writeStore(REVIEW_KEY, decisions)
   nameInput.value = readStore(NAME_KEY, '')
+  var settled = window.almanacReviewStore.settle(readStore(REVIEW_KEY, {}), byId, nameInput.value)
+  var decisions = settled.decisions
+  var dropped = { changed: settled.changed, gone: settled.gone }
+  writeStore(REVIEW_KEY, decisions)
 
   var queue = []
   var position = 0
@@ -668,7 +665,9 @@
     reviewBox.querySelector('.review-reject').disabled = item === undefined
     reviewBox.querySelector('.review-back').disabled = position === 0
     reviewBox.querySelector('.review-next').disabled = item === undefined
-    var lead = dropped > 0 ? plural(dropped, 'earlier decision') + ' dropped because the behaviour changed. ' : ''
+    var lead =
+      (dropped.changed > 0 ? plural(dropped.changed, 'earlier decision') + ' dropped because the behaviour changed. ' : '') +
+      (dropped.gone > 0 ? plural(dropped.gone, 'earlier decision') + ' dropped because the behaviour is no longer on the site. ' : '')
     progress.textContent = lead + (queue.length === 0 ? 'Nothing to show' : (item === undefined ? 'End' : 'Behaviour ' + (position + 1)) + ' of ' + queue.length + ' · ' + decided + ' decided')
     syncCounts()
     if (item === undefined) return
@@ -830,7 +829,7 @@
   clearReviewButton.addEventListener('click', function () {
     if (window.confirm('Clear ' + plural(decidedCount(), 'decision') + '? Download them first if you haven’t sent them.') === false) return
     decisions = {}
-    dropped = 0
+    dropped = { changed: 0, gone: 0 }
     writeStore(REVIEW_KEY, decisions)
     buildQueue()
     showItem()

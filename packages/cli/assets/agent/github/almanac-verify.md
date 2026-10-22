@@ -103,6 +103,6 @@ Post one comment with `add_comment`:
 1. One line of summary, such as "Checked 7 behaviours: 5 confirmed, 1 corrected, 1 missing."
 2. A table with the columns **ID**, **Name**, **Result** and **Suggested change**. Write a corrected or missing behaviour's suggested change as a one-line summary followed by Given/When/Then. For an unsupported one, say what the code does now, or that it no longer exists; removal is the author's decision. Leave the cell empty for a confirmed one.
 3. Under the table, the evidence for every row that isn't confirmed: file, symbol and line.
-4. The last line: "To apply these, run `/almanac-update ${{ github.event.pull_request.number }}` in your agent, or edit the almanac with `almanac apply`."
+4. The last line: "To apply these, run the update workflow on this pull request in your agent (`/almanac-update ${{ github.event.pull_request.number }}` in Claude Code or Copilot Chat, `$almanac-update ${{ github.event.pull_request.number }}` in Codex), or edit the almanac with `almanac apply`."
 
 Keep it short: no preamble, and nothing about behaviours outside the table.

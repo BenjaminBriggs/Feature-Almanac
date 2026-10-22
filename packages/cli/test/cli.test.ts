@@ -1,3 +1,5 @@
+import { createServer } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { MemoryFileSystem } from '@feature-almanac/core'
@@ -150,6 +152,23 @@ platforms:
     expect(h.fs.readFile(file)).toBe(before)
   })
 
+  it('refuses a set that would add an error, naming the values', async () => {
+    const h = await seeded()
+    const result = await h.almanac('set', '1.1', 'status=bogus')
+    expect(result.code).toBe(1)
+    expect(result.stderr).toContain('ALM-E007')
+    expect(result.stderr).toContain('error: Writing these values would introduce lint errors; nothing was written\n')
+  })
+
+  it('writes, mv included, refuse a broken almanac.yaml', async () => {
+    const h = await seeded()
+    const config = join(ROOT, 'almanac.yaml')
+    h.fs.writeFile(config, (h.fs.readFile(config) ?? '').replace('almanac: 1', 'almanac: 7'))
+    const message = 'error: almanac.yaml is missing or invalid; fix it before writing\n'
+    expect(await h.almanac('mv', '1.1.1', '--to', '1.1')).toMatchObject({ code: 4, stderr: message })
+    expect(await h.almanac('set', '1.1.1', 'tags=a')).toMatchObject({ code: 4, stderr: message })
+  })
+
   it('--dry-run prints the diff and writes nothing', async () => {
     const h = await seeded()
     const before = new Map(h.fs.files)
@@ -198,11 +217,36 @@ platforms:
     expect(h.fs.readFile(join(CWD, 'dist/site/almanac.json'))).toContain('"name": "Markdown editor"')
   })
 
+  it('site build reports a duplicate ID and still writes the site', async () => {
+    const h = await seeded()
+    await h.almanac('add', 'behaviour', '--feature', '1.1', '--name', 'Italic formatting', '--format', 'prose', '--description', 'Toggles italic on the selection.')
+    const file = join(ROOT, '01-editing/01-markdown-editor.yaml')
+    h.fs.writeFile(file, (h.fs.readFile(file) ?? '').replaceAll('"1.1.2"', '"1.1.1"'))
+    const result = await h.almanac('site', 'build')
+    expect(result.code).toBe(1)
+    expect(result.stdout).toContain('error  ALM-E005  Duplicate ID 1.1.1: behaviour 1.1.1 collides with behaviour 1.1.1')
+    expect(result.stdout).toMatch(/\nWrote dist\/site\/index\.html \(1 error, 0 warnings\)\n$/)
+    expect(h.fs.readFile(join(CWD, 'dist/site/index.html'))).toContain('Italic formatting')
+  })
+
   it('site serve serves until asked to stop', async () => {
     const h = await seeded()
     const result = await h.almanac('site', 'serve', '--port', '0')
     expect(result.code).toBe(0)
     expect(result.stdout).toMatch(/^Serving http:\/\/127\.0\.0\.1:\d+\/ — watching almanac; Ctrl-C to stop\n$/)
+  })
+
+  it('site serve says when the port is taken', async () => {
+    const h = await seeded()
+    const busy = createServer()
+    await new Promise<void>((resolve) => busy.listen(0, '127.0.0.1', resolve))
+    const { port } = busy.address() as AddressInfo
+    try {
+      const result = await h.almanac('site', 'serve', '--port', String(port))
+      expect(result).toMatchObject({ code: 2, stderr: `error: port ${port} is already in use; pick another with --port, such as --port ${port + 1}\n` })
+    } finally {
+      await new Promise((resolve) => busy.close(resolve))
+    }
   })
 
   it('apply reads a patch from stdin', async () => {
@@ -270,7 +314,7 @@ platforms:
 
     expect((await h.almanac('set', '1.1.1', 'tags=formatting,core')).code).toBe(4)
     expect((await h.almanac('set', '1.1.1', 'name=Bold')).stderr).toContain('use almanac rename')
-    expect((await h.almanac('set', '1.1.1', 'platforms=web')).code).toBe(1)
+    expect(await h.almanac('set', '1.1.1', 'platforms=web')).toMatchObject({ code: 2, stderr: 'error: Unknown platform or group "web"; known: ios, macos, android\n' })
     await h.almanac('add', 'variant', '1.1.1', '--platforms', 'android', '--description', 'Triggered from the formatting bar.')
     await h.almanac('set', '1.1.1@android', 'status=in-progress')
     const override = await h.almanac('set', '1.1.1', 'status.android=shipped')
@@ -369,6 +413,9 @@ platforms:
     const h = harness()
     const result = await h.almanac('agent', 'install')
     expect(result.code).toBe(0)
+    expect(result.stderr).toBe(
+      "In Claude Code: /almanac-generate to build an almanac from this codebase, /almanac-update after a code change, /almanac-verify to check it against the code, /almanac-review with a reviewer's decisions file, /almanac-ask to query it.\n",
+    )
     expect(h.fs.readFile(join(CWD, '.claude/skills/almanac/SKILL.md'))).toContain('name: almanac')
     const generate = h.fs.readFile(join(CWD, '.claude/commands/almanac-generate.md'))
     expect(generate).toMatch(/^---\ndescription: "Build the initial almanac for this codebase from its code"\nargument-hint: "\[path to the code, default: this repository\]"\n---\n\nInput: \$ARGUMENTS\n/)
@@ -380,6 +427,7 @@ platforms:
     expect((await h.almanac('agent', 'install', '--global')).stdout).toContain('Wrote ../home/tester/.claude/skills/almanac/SKILL.md')
     expect((await h.almanac('agent', 'install', '--tool', 'cursor')).code).toBe(2)
     expect((await h.almanac('agent', 'install', '--tool', 'codex,cursor')).code).toBe(2)
+    expect(await h.almanac('agent', 'install', '--tool', '')).toMatchObject({ code: 2, stderr: 'error: --tool needs a tool name; use claude, copilot or codex\n' })
   })
 
   it('agent install renders the workflows for Copilot and Codex', async () => {
@@ -387,7 +435,9 @@ platforms:
     const result = await h.almanac('agent', 'install', '--tool', 'copilot,codex')
     expect(result.code).toBe(0)
     expect(result.stderr).toContain('In Copilot Chat: /almanac-generate')
+    expect(result.stderr).toContain('/almanac-verify to check it against the code')
     expect(result.stderr).toContain('In Codex: $almanac-generate')
+    expect(result.stderr).toContain('$almanac-verify to check it against the code')
 
     const skill = h.fs.readFile(join(CWD, '.claude/skills/almanac/SKILL.md'))
     expect(skill).toBeUndefined()
@@ -429,6 +479,7 @@ platforms:
     expect(workflow).toContain('almanac affected --base origin/${{ github.event.pull_request.base.ref }} --json')
     expect(workflow).toMatch(/\nsafe-outputs:\n {2}add-comment:\n/)
     expect(workflow).not.toMatch(/create-issue:|push-to-pull-request-branch:|create-pull-request:/)
+    expect(workflow).toContain('`$almanac-update ${{ github.event.pull_request.number }}` in Codex')
 
     const instructions = h.fs.readFile(join(CWD, '.github/instructions/almanac.instructions.md')) as string
     expect(instructions).toMatch(/^---\napplyTo: "YOUR_SOURCE_GLOBS,almanac\/\*\*"\n---\n/)
@@ -513,9 +564,10 @@ platforms:
       const h = await cited()
       const calls = stubGit(DIFF)
       await h.almanac('affected', 'abc123')
-      expect(calls).toContainEqual([CWD, 'diff-tree', '-r', '--no-commit-id', '--name-status', '-M', '--root', '-m', '--first-parent', 'abc123'])
+      expect(calls).toContainEqual([CWD, 'diff-tree', '-r', '--no-commit-id', '--name-status', '-M', '--root', '--diff-merges=first-parent', 'abc123'])
       const branch = await h.almanac('affected', '--base', 'main')
       expect(calls).toContainEqual([CWD, 'diff', '--name-status', '-M', 'abc123'])
+      expect(calls).toContainEqual([CWD, 'ls-files', '--others', '--exclude-standard', '--full-name', '--', ':/'])
       expect(branch.stdout).toContain('this branch since main: 4 files changed')
       expect(branch.stdout).toContain('added     Sources/Untracked.swift')
       expect((await h.almanac('affected')).stdout).toContain('uncommitted changes: 4 files changed')

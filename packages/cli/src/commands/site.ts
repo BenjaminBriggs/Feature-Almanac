@@ -21,7 +21,7 @@ export function registerSiteCommands(program: Command, wrap: Wrap): void {
         if (ctx.dryRun === false) for (const [name, content] of Object.entries(files)) ctx.io.fs.writeFile(join(out, name), content)
         const { errors, warnings } = countDiagnostics(compilation.diagnostics)
         ctx.diagnostics(compilation.diagnostics)
-        ctx.out(`${ctx.dryRun ? 'Would write' : 'Wrote'} ${display(ctx, join(out, 'index.html'))} (${errors} errors, ${warnings} warnings)`)
+        ctx.out(`${ctx.dryRun ? 'Would write' : 'Wrote'} ${display(ctx, join(out, 'index.html'))} (${plural(errors, 'error')}, ${plural(warnings, 'warning')})`)
         ctx.envelope(errors === 0, { out, files: Object.keys(files), dryRun: ctx.dryRun }, compilation.diagnostics)
         return errors > 0 ? EXIT.lint : EXIT.ok
       }),
@@ -51,8 +51,13 @@ export function registerSiteCommands(program: Command, wrap: Wrap): void {
               return
             }
             const { errors, warnings } = countDiagnostics(last?.diagnostics ?? [])
-            ctx.note(`rebuilt (${errors} errors, ${warnings} warnings)`)
+            ctx.note(`rebuilt (${plural(errors, 'error')}, ${plural(warnings, 'warning')})`)
           },
+        }).catch((error: unknown) => {
+          if ((error as { code?: unknown }).code === 'EADDRINUSE') {
+            throw new CliError(EXIT.usage, `port ${port} is already in use; pick another with --port, such as --port ${port + 1}`)
+          }
+          throw error
         })
         ctx.diagnostics(last?.diagnostics ?? [], 'stderr')
         ctx.out(`Serving ${server.url} — watching ${display(ctx, root)}; Ctrl-C to stop`)
@@ -81,4 +86,8 @@ function siteFiles(ctx: Context, compilation: Compilation, liveReload: boolean):
 function display(ctx: Context, path: string): string {
   const fromCwd = relative(ctx.io.cwd, path).split(sep).join('/')
   return fromCwd.startsWith('..') ? path : fromCwd === '' ? '.' : fromCwd
+}
+
+function plural(count: number, singular: string): string {
+  return `${count} ${singular}${count === 1 ? '' : 's'}`
 }

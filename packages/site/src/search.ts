@@ -51,7 +51,17 @@ export function searchDocuments(model: Almanac, options: SiteOptions): SearchDoc
       for (const behaviour of feature.behaviours) docs.push(behaviourDocument(model, options, category.name, feature, behaviour))
     }
   }
-  return docs
+  return uniqueKeys(docs)
+}
+
+/** Lint reports a duplicate ID (ALM-E005); the index still needs one key per document, so repeats get `~2`, `~3`… */
+function uniqueKeys(docs: SearchDocument[]): SearchDocument[] {
+  const seen = new Map<string, number>()
+  return docs.map((doc) => {
+    const count = (seen.get(doc.key) ?? 0) + 1
+    seen.set(doc.key, count)
+    return count === 1 ? doc : { ...doc, key: `${doc.key}~${count}` }
+  })
 }
 
 function behaviourDocument(model: Almanac, options: SiteOptions, category: string, feature: Feature, behaviour: Behaviour): SearchDocument {

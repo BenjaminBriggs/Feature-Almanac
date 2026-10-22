@@ -31,4 +31,4 @@ For each changed behaviour in `almanac/`, open the `source` it cites as the pull
 
 - Always cite behaviour IDs, such as "`PD-3.3.2` (Bold formatting) says … but `Editor.swift#toggleBold` now …".
 - Be specific and brief. Suggest the corrected description when you can.
-- Almanac files are written by the `almanac` CLI. Suggest the change, and the author can apply it with the update workflow (`/almanac-update`) or `almanac apply` rather than editing the YAML by hand.
+- Almanac files are written by the `almanac` CLI. Suggest the change, and the author can apply it with the update workflow (`/almanac-update`, or `$almanac-update` in Codex) or `almanac apply` rather than editing the YAML by hand.

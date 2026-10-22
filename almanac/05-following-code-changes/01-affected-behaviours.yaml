@@ -14,7 +14,7 @@ behaviours:
       Lists what the uncommitted work touches, new files included.
       Given a repository with edited files and new, untracked ones
       When the user runs `almanac affected`
-      Then it reports on every file changed since the last commit, plus untracked files under the code path that git doesn't ignore
+      Then it reports on every file changed since the last commit, plus untracked files anywhere in the repository that git doesn't ignore
       And the first line reads like "uncommitted changes: 4 files changed, 3 under the code path."
     source: [packages/cli/src/commands/change.ts#changedFiles, packages/cli/src/commands/change.ts#untracked, packages/cli/src/commands/affected.ts#report]
 
@@ -26,7 +26,7 @@ behaviours:
       When the user runs `almanac affected 4f2c9e1`
       Then it reports on the files that commit changed compared with its first parent
       And for the first commit it is every file
-      But for a merge commit it is every file that differs from either parent, so changes made on the target branch since the fork are listed too, and a file changed on both sides is listed twice
+      And for a merge commit it is what the merge brought into the branch it was merged into, each file once
     source: [packages/cli/src/commands/change.ts#changedFiles]
 
   - id: "5.1.3"
@@ -45,9 +45,9 @@ behaviours:
       Lists everything on the branch, uncommitted work included.
       Given a branch that left main some commits ago, with uncommitted edits
       When the user runs `almanac affected --base main`
-      Then it reports on everything changed since the branch left main, uncommitted files and untracked files under the code path included
+      Then it reports on everything changed since the branch left main, uncommitted and untracked files included
       And the first line starts "this branch since main:"
-    source: [packages/cli/src/commands/change.ts#changedFiles]
+    source: [packages/cli/src/commands/change.ts#changedFiles, packages/cli/src/commands/change.ts#untracked]
 
   - id: "5.1.5"
     name: A list of files
@@ -139,15 +139,22 @@ behaviours:
   - id: "5.1.13"
     name: Almanac at the top of the repository
     description: |
-      Counts every changed file as an almanac edit when the almanac folder is the top of the git repository.
+      Tells almanac files from code when the almanac folder also holds the code.
       Given a standalone almanac whose almanac.yaml sits at the top of its git repository, with `code.path: .`, and a change to a file a behaviour cites
       When the user runs `almanac affected`
-      Then the first line reads like "uncommitted changes: 1 file changed, 0 under the code path."
-      And the report says "No behaviour or feature cites a changed file." and "The change also edits 1 almanac file."
-      And `almanac affected --check` passes whatever the change touches
-    source: [packages/cli/src/commands/change.ts#resolveChange, packages/cli/src/commands/change.ts#prefixes, packages/cli/src/commands/affected.ts#registerAffectedCommand]
+      Then the first line reads like "uncommitted changes: 1 file changed, 1 under the code path."
+      And the behaviours that cite the file are listed
+      And only almanac.yaml and the YAML files in category folders count as almanac files, so `almanac affected --check` fails until the change edits one of them
+    source: [packages/cli/src/commands/change.ts#resolveChange, packages/core/src/workspace.ts#isAlmanacFile, packages/cli/src/commands/affected.ts#registerAffectedCommand]
 
 changelog:
+  - date: "2026-10-22"
+    summary: Fixes from writing Feature Almanac's own almanac.
+    changes:
+      - modified: "5.1.2"
+      - modified: "5.1.1"
+      - modified: "5.1.4"
+      - modified: "5.1.13"
   - date: "2026-10-22"
     summary: Verified against code.
     changes:

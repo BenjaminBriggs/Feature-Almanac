@@ -16,15 +16,16 @@ const THEME_SCRIPT =
 const FONTS =
   'https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&amp;family=Jacquard+24&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap'
 
-let assetCache: { css: string; js: string; minisearch: string; grid: string } | undefined
+let assetCache: { css: string; js: string; reviewStore: string; minisearch: string; grid: string } | undefined
 
-function assets(): { css: string; js: string; minisearch: string; grid: string } {
+function assets(): { css: string; js: string; reviewStore: string; minisearch: string; grid: string } {
   if (assetCache !== undefined) return assetCache
   const require = createRequire(import.meta.url)
   const umd = join(dirname(require.resolve('minisearch')), '..', 'umd', 'index.js')
   assetCache = {
     css: readFileSync(join(ASSETS, 'site.css'), 'utf8'),
     js: readFileSync(join(ASSETS, 'site.js'), 'utf8'),
+    reviewStore: readFileSync(join(ASSETS, 'review-store.js'), 'utf8'),
     minisearch: readFileSync(umd, 'utf8').replace(/^\/\/# sourceMappingURL=.*$/m, ''),
     grid: pixelGridDataUri(),
   }
@@ -44,7 +45,7 @@ export function buildSite(model: Almanac, options: SiteOptions): Record<string, 
  * reads (and find-in-page works) without JavaScript. The script adds search, unfolding panels and deep links.
  */
 export function renderSite(model: Almanac, options: SiteOptions): string {
-  const { css, js, minisearch, grid } = assets()
+  const { css, js, reviewStore, minisearch, grid } = assets()
   const categories = model.categories.filter((category) => category.status !== 'removed')
   const features = categories.flatMap((category) =>
     category.features.filter((feature) => isLive(feature.status)).map((feature) => ({ category, feature })),
@@ -141,6 +142,7 @@ ${example === undefined ? '' : `<span>Cite anything by its ID — <code>${escape
 <script type="application/json" id="almanac-search-options">${embedJson(SEARCH_OPTIONS)}</script>
 <script type="application/json" id="almanac-prefix">${embedJson(model.product.prefix ?? null)}</script>
 <script>${minisearch}</script>
+<script>${reviewStore}</script>
 <script>${js}</script>
 ${options.liveReload === true ? `<script>new EventSource('/__almanac/events').addEventListener('reload', () => location.reload())</script>` : ''}
 </body>
@@ -230,7 +232,12 @@ function renderBehaviour(model: Almanac, options: SiteOptions, feature: Feature,
           .join('')}</div>`
   const variants = behaviour.variants.filter((variant) => removed || variant.status === undefined || isLive(variant.status))
   const review = behaviour.review === undefined ? '' : behaviour.review.stale ? 'changed' : behaviour.review.state
-  return `<li class="behaviour" id="${escapeHtml(behaviour.id)}" data-hash="${escapeHtml(behaviour.hash)}"${review === '' ? '' : ` data-review="${review}"`}>
+  // Who recorded a current verdict, and why, so the page can tell a reviewer's own recorded decision from another's.
+  const recorded =
+    behaviour.review === undefined || behaviour.review.stale
+      ? ''
+      : ` data-review-by="${escapeHtml(behaviour.review.by)}"${behaviour.review.note === undefined ? '' : ` data-review-note="${escapeHtml(behaviour.review.note)}"`}`
+  return `<li class="behaviour" id="${escapeHtml(behaviour.id)}" data-hash="${escapeHtml(behaviour.hash)}"${review === '' ? '' : ` data-review="${review}"`}${recorded}>
 <a class="chip" href="#${escapeHtml(behaviour.id)}">${escapeHtml(behaviour.ref)}</a>
 <div class="b-body">
 <div class="b-head"><h4>${escapeHtml(behaviour.name)}</h4>${removed ? '' : `<span class="rv is-${reviewState(behaviour)}">${REVIEW_LABELS[reviewState(behaviour)]}</span>`}</div>

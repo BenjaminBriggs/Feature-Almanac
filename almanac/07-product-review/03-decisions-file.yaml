@@ -86,25 +86,31 @@ behaviours:
     name: Out-of-date decisions dropped
     description: |
       A decision on text that has changed since is thrown away rather than sent.
-      Given the reviewer decided a behaviour that has since changed, or no longer exists on the site
+      Given the reviewer decided a behaviour that has since changed
       When the reviewer opens the site again in the same browser
       Then that decision is removed from the browser
       And when they open review mode the progress line starts "1 earlier decision dropped because the behaviour changed."
       And the changed behaviour comes back into the list as needing a decision
-    source: [packages/site/assets/site.js#stored, packages/site/assets/site.js#showItem]
+      And a decision on a behaviour that is no longer on the site is removed too, counted on its own as "1 earlier decision dropped because the behaviour is no longer on the site."
+    source: [packages/site/assets/review-store.js#settle, packages/site/assets/site.js#showItem]
 
   - id: "7.3.9"
     name: Recorded decisions cleared
     description: |
-      Decisions the almanac already records are cleared from the browser without a message.
-      Given the almanac now records a current approval or rejection of a behaviour
-      And the reviewer's browser holds a decision with the same verdict on the same text
+      The reviewer's own decisions that the almanac now records are cleared from the browser without a message.
+      Given the almanac now records a current approval or rejection of a behaviour by the name in "Your name"
+      And the reviewer's browser holds a decision on the same text with the same verdict and, for a rejection, the same reason
       When the reviewer opens the site again in the same browser
-      Then that decision is removed from the browser, whoever made the recorded review and whatever its reason
-      And the decision count goes down to match
-    source: [packages/site/assets/site.js#stored]
+      Then that decision is removed from the browser, and the decision count goes down to match
+      But a decision that differs from the recorded review in reviewer, verdict or reason is kept, so a second reviewer's decision can still be downloaded
+    source: [packages/site/assets/review-store.js#settle, packages/site/src/render.ts#renderBehaviour]
 
 changelog:
+  - date: "2026-10-22"
+    summary: Fixes from writing Feature Almanac's own almanac.
+    changes:
+      - modified: "7.3.8"
+      - modified: "7.3.9"
   - date: "2026-10-22"
     summary: Verified against code.
     changes:

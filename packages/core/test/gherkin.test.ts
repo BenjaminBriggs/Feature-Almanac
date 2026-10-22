@@ -23,4 +23,15 @@ describe('parseGherkin', () => {
     expect(named).toMatchObject({ ok: true, summary: 'Bold toggles from the keyboard or the menu.', scenarios: [{ name: 'Keyboard' }, { name: 'Menu' }] })
     expect(parseGherkin('When the user presses ⌘B\nThen the selection is bold')).not.toHaveProperty('summary')
   })
+
+  it('says what the parser rejects, and where in the description', () => {
+    expect(parseGherkin('Given a note\n"""\nsome text\nThen it is saved')).toEqual({
+      ok: false,
+      message: 'the Gherkin parser rejects it: unexpected end of file, expected: #DocStringSeparator, #Other',
+    })
+    expect(parseGherkin('Saves notes.\nGiven a note\nFeature: Notes\nThen it is saved')).toMatchObject({
+      ok: false,
+      message: expect.stringMatching(/^the Gherkin parser rejects line 3: expected: #EOF, .*, got 'Feature: Notes'$/),
+    })
+  })
 })

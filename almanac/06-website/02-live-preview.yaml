@@ -39,12 +39,12 @@ behaviours:
   - id: "6.2.4"
     name: Port already in use
     description: |
-      Fails with an internal error when the port is taken.
+      Says the port is taken and how to pick another.
       Given another program is already listening on port 4173
       When the user runs `almanac site serve`
-      Then it stops with "internal error: Error: listen EADDRINUSE: address already in use 127.0.0.1:4173" followed by a stack trace
-      And the command exits with code 5
-    source: [packages/site/src/serve.ts#startDevServer, packages/cli/src/context.ts#Context]
+      Then it stops with "error: port 4173 is already in use; pick another with --port, such as --port 4174"
+      And the command exits with code 2
+    source: [packages/cli/src/commands/site.ts#registerSiteCommands, packages/site/src/serve.ts#startDevServer]
 
   - id: "6.2.5"
     name: Reload on change
@@ -98,6 +98,10 @@ behaviours:
     source: [packages/cli/src/commands/site.ts#registerSiteCommands, packages/cli/src/io.ts#nodeIo, packages/site/src/serve.ts#startDevServer]
 
 changelog:
+  - date: "2026-10-22"
+    summary: Fixes from writing Feature Almanac's own almanac.
+    changes:
+      - modified: "6.2.4"
   - date: "2026-10-22"
     summary: Verified against code.
     changes:

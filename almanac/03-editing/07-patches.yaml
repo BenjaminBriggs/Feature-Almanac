@@ -91,7 +91,7 @@ behaviours:
       Scenario: A malformed field
         When the first operation has a field of the wrong type or leaves out one it needs, as `{"op": "set", "ref": "1.1"}` does
         Then it stops with the field and the problem, as in `error: ops[0].values: Invalid input: expected record, received undefined`, and exits 2
-        And a key the operation doesn't take is reported with a stray dot, as in `error: ops[0].: Unrecognized key: "extra"`
+        And a key the operation doesn't take is reported against the operation, as in `error: ops[0]: Unrecognized key: "extra"`
     source: [packages/core/src/patch.ts#planPatch, packages/schema/src/files.ts#PATCH_OP_SCHEMAS]
 
   - id: "3.7.8"
@@ -115,6 +115,10 @@ behaviours:
     source: [packages/core/src/changes.ts#applyChanges]
 
 changelog:
+  - date: "2026-10-22"
+    summary: Fixes from writing Feature Almanac's own almanac.
+    changes:
+      - modified: "3.7.7"
   - date: "2026-10-22"
     summary: Verified against code.
     changes:

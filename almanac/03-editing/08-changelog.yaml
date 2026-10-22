@@ -15,10 +15,10 @@ behaviours:
       Given behaviour 1.1.2 Bold formatting in feature 1.1
       When the user runs a write command such as `almanac set 1.1.2 tags=core`
       Then the feature's changelog gets a new first entry dated today, as YYYY-MM-DD
-      And its summary is generated, for example "Set tags → core on Bold formatting."
+      And its summary is generated, for example "Set tags → core on Bold formatting.", with a platform map as "status → ios shipped, android planned" and a value with no short form, such as `links`, by its key alone: "Set links on Markdown editor."
       And it lists the change: `added`, `modified` or `removed` with the ID, `moved` with from and to, or `feature: added`, `modified` or `removed`
       But recorded reviews, `relink`, `fmt`, `lint --fix` and a patch with `"changelog": "none"` add no entry
-    source: [packages/core/src/mutations.ts#prependChangelog, packages/core/src/mutations.ts#note]
+    source: [packages/core/src/mutations.ts#prependChangelog, packages/core/src/mutations.ts#note, packages/core/src/mutations.ts#describeAssignment]
 
   - id: "3.8.2"
     name: Own summary
@@ -102,6 +102,10 @@ behaviours:
     source: [packages/core/src/patch.ts#planPatch, packages/schema/src/files.ts#patchChangelogEntrySchema]
 
 changelog:
+  - date: "2026-10-22"
+    summary: Fixes from writing Feature Almanac's own almanac.
+    changes:
+      - modified: "3.8.1"
   - date: "2026-10-22"
     summary: Verified against code.
     changes:

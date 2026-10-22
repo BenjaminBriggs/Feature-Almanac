@@ -68,7 +68,7 @@ behaviours:
       Then it posts one comment that starts with a summary line such as "Checked 7 behaviours: 5 confirmed, 1 corrected, 1 missing."
       And a table with the columns ID, Name, Result and Suggested change, where a corrected or missing behaviour's suggested change is a summary line and Given/When/Then, an unsupported one's says what the code does now or that it no longer exists, and a confirmed one's is empty
       And under the table, the file, symbol and line behind every row that isn't confirmed
-      And a last line: "To apply these, run `/almanac-update <number>` in your agent, or edit the almanac with `almanac apply`."
+      And a last line: "To apply these, run the update workflow on this pull request in your agent (`/almanac-update <number>` in Claude Code or Copilot Chat, `$almanac-update <number>` in Codex), or edit the almanac with `almanac apply`."
     source: [packages/cli/assets/agent/github/almanac-verify.md]
 
   - id: "9.3.7"
@@ -108,6 +108,10 @@ behaviours:
     source: [packages/cli/assets/agent/github/almanac-verify.md]
 
 changelog:
+  - date: "2026-10-22"
+    summary: Fixes from writing Feature Almanac's own almanac.
+    changes:
+      - modified: "9.3.6"
   - date: "2026-10-22"
     summary: Verified against code.
     changes:

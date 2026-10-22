@@ -69,6 +69,9 @@ describe('apply', () => {
     )
     expect(() => planPatch(compilation, parsePatch({ almanac: 1, ops: [{ op: 'delete', ref: '1.1.1' }] }), NOW)).toThrow('unknown op "delete"; expected one of add, set')
     expect(() => planPatch(compilation, parsePatch({ almanac: 1, ops: [{ op: 'remove', ref: '1.1.1' }] }), NOW)).toThrow('ops[0].reason')
+    expect(() => planPatch(compilation, parsePatch({ almanac: 1, ops: [{ op: 'remove', ref: '1.1.1', reason: 'Gone.', extra: 1 }] }), NOW)).toThrow(
+      'ops[0]: Unrecognized key: "extra"',
+    )
     expect(() => planPatch(compilation, parsePatch({ almanac: 1, ops: [{ op: 'describe', ref: '1.1.1', description: 'a', overview: 'b' }] }), NOW)).toThrow(
       'needs exactly one of description and overview',
     )

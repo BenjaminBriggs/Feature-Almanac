@@ -238,4 +238,11 @@ describe('fix 7: variants have a lifecycle', () => {
     const { compilation: base } = open()
     expect(addVariant(base, { behaviour: '1.1.1', platforms: ['apple'], description: 'Triggered with ⌘B on Apple keyboards.', now: NOW }).id).toBe('1.1.1@ios')
   })
+
+  it('a new variant needs known platforms, rather than covering them all', () => {
+    const { compilation } = open()
+    const add = (platforms: string[]) => () => addVariant(compilation, { behaviour: '1.1.1', platforms, description: 'Shown on a platform nobody has.', now: NOW })
+    expect(add(['windows', 'ios'])).toThrow('Unknown platform or group "windows"; known: ios, android, macos, apple')
+    expect(add([])).toThrow('A variant needs at least one platform')
+  })
 })

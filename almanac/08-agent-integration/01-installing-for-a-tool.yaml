@@ -43,18 +43,18 @@ behaviours:
     description: |
       Ends the install with a line saying how to run the workflows in that tool.
       When an install writes at least one file for a tool
-      Then it prints one line for that tool naming the commands for the generate, update, review and ask workflows
+      Then it prints one line for that tool naming the commands for the generate, update, verify, review and ask workflows
       But a tool whose files were all up to date gets no line
     source: [packages/cli/src/commands/agent.ts#TOOLS]
     variants:
       - platforms: [claude]
-        description: "For Claude Code the line is \"In Claude Code: /almanac-generate to build an almanac from this codebase, /almanac-update after a code change, /almanac-review with a reviewer's decisions file, /almanac-ask to query it.\""
+        description: "For Claude Code the line is \"In Claude Code: /almanac-generate to build an almanac from this codebase, /almanac-update after a code change, /almanac-verify to check it against the code, /almanac-review with a reviewer's decisions file, /almanac-ask to query it.\""
         source: [packages/cli/src/commands/agent.ts#TOOLS]
       - platforms: [copilot]
-        description: "For Copilot the line is \"In Copilot Chat: /almanac-generate to build an almanac from this codebase, /almanac-update after a code change, /almanac-review with a reviewer's decisions file, /almanac-ask to query it.\""
+        description: "For Copilot the line is \"In Copilot Chat: /almanac-generate to build an almanac from this codebase, /almanac-update after a code change, /almanac-verify to check it against the code, /almanac-review with a reviewer's decisions file, /almanac-ask to query it.\""
         source: [packages/cli/src/commands/agent.ts#TOOLS]
       - platforms: [codex]
-        description: "For Codex the line is \"In Codex: $almanac-generate to build an almanac from this codebase, $almanac-update after a code change, $almanac-review with a reviewer's decisions file, $almanac-ask to query it.\""
+        description: "For Codex the line is \"In Codex: $almanac-generate to build an almanac from this codebase, $almanac-update after a code change, $almanac-verify to check it against the code, $almanac-review with a reviewer's decisions file, $almanac-ask to query it.\""
         source: [packages/cli/src/commands/agent.ts#TOOLS]
 
   - id: "8.1.4"
@@ -111,6 +111,7 @@ behaviours:
       When the user runs `almanac agent install --tool cursor`, alone or alongside a supported tool such as `--tool claude,cursor`
       Then it prints "error: --tool cursor is not supported; use claude, copilot or codex"
       And it exits with code 2
+      And `--tool` with no name, as in `--tool ""`, stops with "error: --tool needs a tool name; use claude, copilot or codex"
       But no file is written for any tool
     source: [packages/cli/src/commands/agent.ts#registerAgentCommands]
 
@@ -140,6 +141,14 @@ behaviours:
     source: [packages/cli/src/commands/agent.ts#registerAgentCommands]
 
 changelog:
+  - date: "2026-10-22"
+    summary: Fixes from writing Feature Almanac's own almanac.
+    changes:
+      - modified: "8.1.3"
+      - modified: "8.1.3@claude"
+      - modified: "8.1.3@copilot"
+      - modified: "8.1.3@codex"
+      - modified: "8.1.8"
   - date: "2026-10-22"
     summary: Verified against code.
     changes:

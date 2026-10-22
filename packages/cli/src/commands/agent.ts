@@ -46,7 +46,7 @@ const TOOLS: Record<string, Tool> = {
       path: `commands/almanac-${name}.md`,
       frontmatter: { description: field(meta, 'description'), 'argument-hint': field(meta, 'argument-hint') },
     }),
-    note: () => 'In Claude Code: /almanac-generate to build an almanac from this codebase, /almanac-update after a code change, /almanac-review with a reviewer\'s decisions file, /almanac-ask to query it.',
+    note: () => 'In Claude Code: /almanac-generate to build an almanac from this codebase, /almanac-update after a code change, /almanac-verify to check it against the code, /almanac-review with a reviewer\'s decisions file, /almanac-ask to query it.',
   },
   copilot: {
     project: '.github',
@@ -64,7 +64,7 @@ const TOOLS: Record<string, Tool> = {
     note: (global) =>
       global
         ? 'Copilot now has the almanac skill in every project. Its prompts (/almanac-generate, /almanac-update, /almanac-verify, /almanac-review, /almanac-ask) are per repository: run agent install --tool copilot in one.'
-        : 'In Copilot Chat: /almanac-generate to build an almanac from this codebase, /almanac-update after a code change, /almanac-review with a reviewer\'s decisions file, /almanac-ask to query it.',
+        : 'In Copilot Chat: /almanac-generate to build an almanac from this codebase, /almanac-update after a code change, /almanac-verify to check it against the code, /almanac-review with a reviewer\'s decisions file, /almanac-ask to query it.',
     ci: [
       ['almanac-verify.md', 'workflows/almanac-verify.md'],
       ['almanac.instructions.md', 'instructions/almanac.instructions.md'],
@@ -79,7 +79,7 @@ const TOOLS: Record<string, Tool> = {
       path: `skills/almanac-${name}/SKILL.md`,
       frontmatter: { name: `almanac-${name}`, description: `${field(meta, 'description')}. ${field(meta, 'when')}` },
     }),
-    note: () => 'In Codex: $almanac-generate to build an almanac from this codebase, $almanac-update after a code change, $almanac-review with a reviewer\'s decisions file, $almanac-ask to query it.',
+    note: () => 'In Codex: $almanac-generate to build an almanac from this codebase, $almanac-update after a code change, $almanac-verify to check it against the code, $almanac-review with a reviewer\'s decisions file, $almanac-ask to query it.',
   },
 }
 
@@ -95,9 +95,8 @@ export function registerAgentCommands(program: Command, wrap: Wrap): void {
       wrap('agent install', (ctx, options: { tool: string; global?: boolean; ci?: boolean }) => {
         const names = [...new Set(options.tool.split(',').map((name) => name.trim()).filter((name) => name !== ''))]
         const unknown = names.filter((name) => TOOLS[name] === undefined)
-        if (names.length === 0 || unknown.length > 0) {
-          throw new UsageError(`--tool ${unknown.join(',') || options.tool} is not supported; use claude, copilot or codex`)
-        }
+        if (names.length === 0) throw new UsageError('--tool needs a tool name; use claude, copilot or codex')
+        if (unknown.length > 0) throw new UsageError(`--tool ${unknown.join(',')} is not supported; use claude, copilot or codex`)
         const global = options.global === true
         const ci = options.ci === true
         if (ci && global) throw new UsageError('--ci installs into a repository, so it cannot be combined with --global')

@@ -110,7 +110,8 @@ export function planPatch(baseline: Compilation, patch: Patch, now: Date, option
     const parsed = schema.safeParse(raw)
     if (parsed.success === false) {
       const issue = parsed.error.issues[0]
-      throw new UsageError(`ops[${index}].${issue?.path.join('.') ?? ''}: ${issue?.message ?? 'invalid'}`)
+      const path = issue?.path.join('.') ?? ''
+      throw new UsageError(`ops[${index}]${path === '' ? '' : `.${path}`}: ${issue?.message ?? 'invalid'}`)
     }
     const op = parsed.data as PatchOp
     if (op.op === 'review') {

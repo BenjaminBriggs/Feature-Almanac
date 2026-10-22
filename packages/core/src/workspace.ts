@@ -61,6 +61,18 @@ export function loadWorkspace(root: string, fs: FileSystem): Workspace {
   return workspace
 }
 
+/**
+ * Whether a root-relative path is an almanac file: almanac.yaml, or a YAML file in a category folder
+ * (one loadWorkspace found, or one named like a category, which covers a folder the change deletes).
+ */
+export function isAlmanacFile(workspace: Workspace, path: string): boolean {
+  if (path === CONFIG_FILE) return true
+  const parts = path.split('/')
+  const [dir, name] = parts
+  if (parts.length !== 2 || dir === undefined || name === undefined || name.endsWith('.yaml') === false || dir.startsWith('.')) return false
+  return CATEGORY_DIR_RE.test(dir) || workspace.categories.some((category) => category.dirName === dir)
+}
+
 export function allFiles(workspace: Workspace): SourceFile[] {
   const files: SourceFile[] = []
   if (workspace.config !== undefined) files.push(workspace.config)

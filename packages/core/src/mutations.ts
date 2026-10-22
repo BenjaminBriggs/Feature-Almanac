@@ -19,7 +19,7 @@ import { REMOVED, type ResolvedConfig } from './config.js'
 import { formatDocument } from './format.js'
 import type { FileSystem } from './fs.js'
 import { categoryDirName, featureFileName } from './names.js'
-import { expandPlatforms } from './platforms.js'
+import { expandPlatforms, type Expansion } from './platforms.js'
 import { InvalidStateError, NotFoundError, UsageError, lookup, resolveId, type Redirect, type Target } from './query.js'
 import { CONFIG_FILE, projectDir } from './root.js'
 import { CATEGORY_FILE, type SourceFile } from './workspace.js'
@@ -259,10 +259,11 @@ export function addVariant(compilation: Compilation, input: AddVariantInput): Mu
   const behaviour = compilation.behaviours.get(behaviourId)
   if (behaviour === undefined) throw new NotFoundError(`Behaviour ${behaviourId} not found`)
 
-  // The ref names the variant by its first platform in config order (§7).
-  const platforms = expandPlatforms(input.platforms, cfg.platforms, cfg, false).platforms
-  const first = platforms[0]
-  if (first === undefined) throw new UsageError(`No known platform in ${input.platforms.join(', ')}`)
+  // The ref names the variant by its first platform in config order (§7). An empty or unknown list would expand to
+  // every platform, so it is refused here rather than written.
+  const platforms = known(expandPlatforms(input.platforms, cfg.platforms, cfg, false), cfg)
+  const first = input.platforms.length === 0 ? undefined : platforms[0]
+  if (first === undefined) throw new UsageError('A variant needs at least one platform')
   const ref = `${behaviourId}@${first}`
 
   const variant: Record<string, unknown> = { platforms: input.platforms, description: input.description }
@@ -455,7 +456,7 @@ export function setValues(compilation: Compilation, input: SetInput): Mutation {
   let platforms = currentPlatforms(located)
   for (const { value } of entries.filter((entry) => entry.head === 'platforms')) {
     const base = platformBase(cfg, located)
-    platforms = value === null ? (level === 'variant' ? [] : base) : expandPlatforms(value as string[], base, cfg, level !== 'variant').platforms
+    platforms = value === null ? (level === 'variant' ? [] : base) : known(expandPlatforms(value as string[], base, cfg, level !== 'variant'), cfg)
   }
   entries.sort((a, b) => Number(b.head === 'platforms') - Number(a.head === 'platforms'))
   for (const { head, sub, value } of entries) {
@@ -475,10 +476,38 @@ export function setValues(compilation: Compilation, input: SetInput): Mutation {
   if (JSON.stringify(node.toJSON()) === before) throw new InvalidStateError(`Nothing to change: ${located.id} already has these values`)
 
   if (level === 'variant' && platforms[0] !== undefined) {
-    located.id = `${(located.target as Extract<Target, { kind: 'variant' }>).behaviour.model.id}@${platforms[0]}`
+    const { behaviour, variant } = located.target as Extract<Target, { kind: 'variant' }>
+    located.id = `${behaviour.model.id}@${platforms[0]}`
+    repointVariantRefs(located.doc, behaviour.model, variant.platforms, platforms)
   }
   const parts = entries.map(({ key, value }) => describeAssignment(key, value))
   return edited(located, `Set ${parts.join('; ')} on ${located.label}.`, changeOf(located, 'modified'), input)
+}
+
+/**
+ * A variant's ref names its first platform, so new platforms can leave the feature's changelog naming it by one it
+ * no longer covers, which would no longer resolve. Those entries follow it to its new ref.
+ */
+function repointVariantRefs(doc: Document, behaviour: { id: string; formerly: readonly string[] }, before: readonly string[], after: readonly string[]): void {
+  const first = after[0]
+  const dropped = new Set(before.filter((platform) => after.includes(platform) === false))
+  const ids = new Set([behaviour.id, ...behaviour.formerly])
+  const changelog = doc.get('changelog', true)
+  if (first === undefined || dropped.size === 0 || isSeq(changelog) === false) return
+  for (const entry of changelog.items) {
+    const changes = isMap(entry) ? entry.get('changes', true) : undefined
+    if (isSeq(changes) === false) continue
+    for (const change of changes.items) {
+      if (isMap(change) === false) continue
+      for (const kind of ['added', 'modified', 'removed']) {
+        const value = change.get(kind, true)
+        if (isScalar(value) === false) continue
+        const ref = parseRef(String(value.value))
+        if (ref?.platform === undefined || ids.has(ref.id) === false || dropped.has(ref.platform) === false) continue
+        value.value = `${ref.id}@${first}`
+      }
+    }
+  }
 }
 
 /** A variant's own status or since wins on its platforms, so setting the behaviour's would change nothing there. */
@@ -598,7 +627,11 @@ function describeAssignment(key: string, value: unknown): string {
   if (value === null) return `${key} → none`
   if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return `${key} → ${value}`
   if (Array.isArray(value) && value.every((item) => typeof item === 'string')) return `${key} → ${value.join(', ')}`
-  return `${key} updated`
+  if (value !== null && typeof value === 'object' && Array.isArray(value) === false && Object.values(value).every((item) => typeof item === 'string')) {
+    return `${key} → ${Object.entries(value).map(([platform, item]) => `${platform} ${item}`).join(', ')}`
+  }
+  // Links, field maps and the like: the key alone, as in "Set links on Markdown editor."
+  return key
 }
 
 function setKey(doc: Document, map: YAMLMap, key: string, value: unknown): void {
@@ -972,6 +1005,15 @@ export function withChangelogEntry(text: string, entry: Record<string, unknown>)
 }
 
 // helpers
+
+/** An unknown tag would otherwise drop out of the expansion, and a list of only unknown tags would cover every platform. */
+function known(expansion: Expansion, cfg: ResolvedConfig): string[] {
+  const unknown = expansion.unknown.map(({ tag }) => `"${tag}"`)
+  if (unknown.length > 0) {
+    throw new UsageError(`Unknown platform or group ${unknown.join(', ')}; known: ${[...cfg.platforms, ...Object.keys(cfg.groups)].join(', ')}`)
+  }
+  return expansion.platforms
+}
 
 function requireConfig(compilation: Compilation): ResolvedConfig {
   if (compilation.config === undefined || compilation.workspace.config === undefined) {

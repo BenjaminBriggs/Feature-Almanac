@@ -52,10 +52,11 @@ behaviours:
       Still writes the page when the almanac has lint errors, but fails the command.
       Given an almanac with lint errors, such as a feature file that isn't valid YAML
       When the user runs `almanac site build`
-      Then the errors are listed and the page is still written, with the count in "Wrote dist/site/index.html (1 errors, 0 warnings)"
+      Then the errors are listed and the page is still written, with the count in "Wrote dist/site/index.html (1 error, 0 warnings)"
       And the command exits with code 1
+      And two features or two behaviours that share an ID (ALM-E005) are both on the page, and search finds both
       But when `almanac.yaml` is missing or invalid it stops with "almanac.yaml is missing or invalid" and writes nothing
-    source: [packages/cli/src/commands/site.ts#registerSiteCommands, packages/cli/src/context.ts#Context]
+    source: [packages/cli/src/commands/site.ts#registerSiteCommands, packages/cli/src/context.ts#Context, packages/site/src/search.ts#uniqueKeys]
 
   - id: "6.1.6"
     name: Dry run
@@ -85,6 +86,10 @@ behaviours:
     source: [packages/cli/src/commands/site.ts#registerSiteCommands]
 
 changelog:
+  - date: "2026-10-22"
+    summary: Fixes from writing Feature Almanac's own almanac.
+    changes:
+      - modified: "6.1.5"
   - date: "2026-10-22"
     summary: Verified against code.
     changes:

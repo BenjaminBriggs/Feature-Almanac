@@ -53,10 +53,11 @@ behaviours:
   - id: "4.4.5"
     name: Gherkin that doesn't parse
     description: |
-      Warns when the Gherkin parser rejects a description.
-      Given a behaviour whose steps open a `"""` doc string and never close it
+      Warns when the Gherkin parser rejects a description, saying what it rejected and where.
+      Given behaviour 1.1.7 whose third line is "Feature: Notes", among its steps
       When the user runs `almanac lint`
-      Then lint warns ALM-W015, "Behaviour 1.1.7 has format gherkin, but Parser errors: (gherkin is the default; set format: prose for plain text)", without saying what or where the problem is
+      Then lint warns ALM-W015, "Behaviour 1.1.7 has format gherkin, but the Gherkin parser rejects line 3: expected: #EOF, …, got 'Feature: Notes' (gherkin is the default; set format: prose for plain text)"
+      And a problem found only at the end, such as a `"""` doc string that is never closed, reads "the Gherkin parser rejects it: unexpected end of file, expected: #DocStringSeparator, #Other"
       And `almanac show 1.1.7 --json` gives no `summary` or `gherkin` for it
     source: [packages/core/src/gherkin.ts#parseGherkin, packages/core/src/compile.ts#Compiler.processBehaviour]
 
@@ -82,6 +83,10 @@ behaviours:
     source: [packages/core/src/compile.ts#Compiler.processBehaviour, packages/core/src/config.ts#DEFAULT_FORMATS, packages/core/src/config.ts#resolveConfig]
 
 changelog:
+  - date: "2026-10-22"
+    summary: Fixes from writing Feature Almanac's own almanac.
+    changes:
+      - modified: "4.4.5"
   - date: "2026-10-22"
     summary: Initial almanac.
     changes:

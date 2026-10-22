@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { runInNewContext } from 'node:vm'
 import MiniSearch from 'minisearch'
 import { describe, expect, it } from 'vitest'
 import type { Almanac } from '@feature-almanac/schema'
@@ -64,7 +67,7 @@ describe('renderSite', () => {
     bold.review = { state: 'approved', by: 'Sam Price', date: '2026-10-19', hash: bold.hash, stale: false }
     autosave.review = { state: 'rejected', by: 'Sam Price', date: '2026-10-19', note: 'Too slow.', hash: '00000000', stale: true }
     const page = renderSite(reviewed, siteOptions(reviewed, undefined))
-    expect(page).toContain(`<li class="behaviour" id="1.1.1" data-hash="${bold.hash}" data-review="approved">`)
+    expect(page).toContain(`<li class="behaviour" id="1.1.1" data-hash="${bold.hash}" data-review="approved" data-review-by="Sam Price">`)
     expect(page).toContain('<p class="b-review is-approved">Approved by Sam Price, 19 Oct 2026</p>')
     expect(page).toContain('data-review="changed"')
     expect(page).toContain('<p class="b-review is-changed">Changed since Sam Price rejected it on 19 Oct 2026</p>')
@@ -95,6 +98,45 @@ describe('renderSite', () => {
   })
 })
 
+describe('review store', () => {
+  type Decision = { state: string; hash: string; date: string; note?: string }
+  type Item = { hash: string; review: string; reviewBy: string; reviewNote: string }
+  type Settle = (stored: Record<string, Decision>, items: Record<string, Item>, name: string) => { decisions: Record<string, Decision>; changed: number; gone: number }
+  // The page loads it as a plain script; its top-level `var` lands on the context.
+  const context: { almanacReviewStore?: { settle: Settle } } = {}
+  runInNewContext(readFileSync(fileURLToPath(new URL('../assets/review-store.js', import.meta.url)), 'utf8'), context)
+  const settle: Settle = (...args) => {
+    if (context.almanacReviewStore === undefined) throw new Error('review-store.js defined nothing')
+    return context.almanacReviewStore.settle(...args)
+  }
+  const approved = { state: 'approved', hash: 'aaaa', date: '2026-10-22' }
+  const rejected = { state: 'rejected', hash: 'aaaa', date: '2026-10-22', note: 'Too slow.' }
+  const item = (review: string, reviewBy = '', reviewNote = '') => ({ hash: 'aaaa', review, reviewBy, reviewNote })
+
+  it('drops a decision the almanac records from this reviewer, with the same reason', () => {
+    expect(settle({ '1.1.1': approved, '1.1.2': rejected }, { '1.1.1': item('approved', 'Sam'), '1.1.2': item('rejected', 'Sam', 'Too slow.') }, 'Sam')).toEqual({
+      decisions: {},
+      changed: 0,
+      gone: 0,
+    })
+  })
+
+  it('keeps a decision with the same verdict from another reviewer, or with another reason', () => {
+    const stored = { '1.1.1': approved, '1.1.2': rejected }
+    expect(settle(stored, { '1.1.1': item('approved', 'Ana'), '1.1.2': item('rejected', 'Ana', 'Too slow.') }, 'Sam').decisions).toEqual(stored)
+    expect(settle(stored, { '1.1.1': item('approved', 'Sam'), '1.1.2': item('rejected', 'Sam', 'Too fast.') }, 'Sam').decisions).toEqual({ '1.1.2': rejected })
+    expect(settle(stored, { '1.1.1': item('approved', 'Sam'), '1.1.2': item('rejected', 'Sam', 'Too slow.') }, '').decisions).toEqual(stored)
+  })
+
+  it('counts changed behaviours apart from ones no longer on the page', () => {
+    expect(settle({ '1.1.1': approved, '1.1.2': rejected, '1.1.3': approved }, { '1.1.1': { ...item(''), hash: 'bbbb' }, '1.1.3': item('') }, 'Sam')).toEqual({
+      decisions: { '1.1.3': approved },
+      changed: 1,
+      gone: 1,
+    })
+  })
+})
+
 describe('pixelGridPng', () => {
   it('is a small, reproducible greyscale-and-alpha PNG', () => {
     const png = pixelGridPng()
@@ -117,6 +159,18 @@ describe('search index', () => {
   it('indexes features and behaviours, including removed ones', () => {
     expect(docs.map((doc) => doc.key)).toEqual(['f:1.1', 'b:1.1.1', 'b:1.1.2', 'b:1.1.3', 'b:1.1.4', 'b:1.1.5', 'f:2.1', 'b:2.1.1'])
     expect(docs.find((doc) => doc.id === '1.1.5')?.removed).toBe(true)
+  })
+
+  it('indexes entities that share an ID, which lint reports as ALM-E005', () => {
+    const clashing = structuredClone(model)
+    const feature = clashing.categories[0]?.features[0]
+    const [first, second] = feature?.behaviours ?? []
+    if (feature === undefined || first === undefined || second === undefined) throw new Error('no 1.1.1 or 1.1.2')
+    second.id = first.id
+    clashing.categories[1]?.features.push({ ...structuredClone(feature), behaviours: [] })
+    const keys = searchDocuments(clashing, siteOptions(clashing, undefined)).map((doc) => doc.key)
+    expect(keys).toEqual(['f:1.1', 'b:1.1.1', 'b:1.1.1~2', 'b:1.1.3', 'b:1.1.4', 'b:1.1.5', 'f:2.1', 'b:2.1.1', 'f:1.1~2'])
+    expect(() => renderSite(clashing, siteOptions(clashing, undefined))).not.toThrow()
   })
 
   it('finds a behaviour from words spread across it and its feature', () => {

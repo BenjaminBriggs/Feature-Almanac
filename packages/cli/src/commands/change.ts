@@ -1,5 +1,5 @@
 import { relative, resolve, sep } from 'node:path'
-import { parseChangedFiles, type ChangedFile, type Compilation } from '@feature-almanac/core'
+import { isAlmanacFile, parseChangedFiles, type ChangedFile, type Compilation } from '@feature-almanac/core'
 import type { Command } from 'commander'
 import { CliError, EXIT, type Context } from '../context.js'
 
@@ -39,10 +39,15 @@ export function resolveChange(ctx: Context, compilation: Compilation, change: st
   const codeDir = resolve(root, compilation.config?.code?.path ?? '.')
   const { label, files } = changedFiles(ctx, codeDir, change, options)
   const { codePrefix, almanacPrefix } = prefixes(ctx, root, codeDir, options.files !== undefined)
-  const almanacFiles = files.filter((file) => file.path.startsWith(almanacPrefix)).map((file) => file.path)
+  // When the almanac folder also holds the code (say, a standalone almanac at the top of its repository), only
+  // almanac.yaml and the category folders are the almanac; otherwise everything under the almanac folder is.
+  const holdsCode = codePrefix.startsWith(almanacPrefix)
+  const isAlmanac = (path: string) =>
+    path.startsWith(almanacPrefix) && (holdsCode === false || isAlmanacFile(compilation.workspace, path.slice(almanacPrefix.length)))
+  const almanacFiles = files.filter((file) => isAlmanac(file.path)).map((file) => file.path)
   const codeFiles: ChangedFile[] = []
   for (const file of files) {
-    if (file.path.startsWith(almanacPrefix) || file.path.startsWith(codePrefix) === false) continue
+    if (isAlmanac(file.path) || file.path.startsWith(codePrefix) === false) continue
     const from = file.from !== undefined && file.from.startsWith(codePrefix) ? file.from.slice(codePrefix.length) : undefined
     codeFiles.push({ path: file.path.slice(codePrefix.length), status: file.status, ...(from !== undefined ? { from } : {}) })
   }
@@ -65,11 +70,12 @@ function changedFiles(ctx: Context, codeDir: string, change: string | undefined,
   }
   if (change.includes('..')) return { label: change, files: parseChangedFiles(run(['diff', '--name-status', '-M', change])) }
   // One commit: what it changed against its first parent (a merge brings in its whole branch; a root commit adds everything).
-  return { label: change, files: parseChangedFiles(run(['diff-tree', '-r', '--no-commit-id', '--name-status', '-M', '--root', '-m', '--first-parent', change])) }
+  return { label: change, files: parseChangedFiles(run(['diff-tree', '-r', '--no-commit-id', '--name-status', '-M', '--root', '--diff-merges=first-parent', change])) }
 }
 
+/** Untracked files in the whole repository (`:/` is its top), so new almanac files count wherever the code root is. */
 function untracked(run: (args: string[]) => string): ChangedFile[] {
-  return parseChangedFiles(run(['ls-files', '--others', '--exclude-standard', '--full-name']))
+  return parseChangedFiles(run(['ls-files', '--others', '--exclude-standard', '--full-name', '--', ':/']))
     .map((file) => ({ path: file.path, status: 'added' as const }))
 }
 

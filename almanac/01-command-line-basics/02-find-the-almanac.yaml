@@ -57,11 +57,14 @@ behaviours:
       When the user runs `almanac list`, `almanac show`, `almanac build`, `almanac site build`, `almanac relink` or `almanac affected`
       Then the problems are listed, such as "almanac.yaml:2  error  ALM-E009  almanac: Invalid input: expected 1"
       And it fails with "almanac.yaml is missing or invalid" and exit code 1
-      And `add`, `set`, `describe`, `rename`, `remove`, `changelog add`, `apply` and `next-id` fail with "almanac.yaml is missing or invalid; fix it before writing" and exit code 4, without listing the problems
-      But `almanac mv` fails as if the entity didn't exist, as in "Behaviour 1.1.1 not found", with exit code 3
+      And `add`, `set`, `describe`, `rename`, `remove`, `mv`, `changelog add`, `apply` and `next-id` fail with "almanac.yaml is missing or invalid; fix it before writing" and exit code 4, without listing the problems
     source: [packages/cli/src/context.ts#Context, packages/core/src/mutations.ts#requireConfig, packages/cli/src/commands/write.ts#registerWriteCommands]
 
 changelog:
+  - date: "2026-10-22"
+    summary: Fixes from writing Feature Almanac's own almanac.
+    changes:
+      - modified: "1.2.5"
   - date: "2026-10-22"
     summary: Verified against code.
     changes:

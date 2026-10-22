@@ -96,7 +96,8 @@ behaviours:
       And the feature's changelog gets "Added Android variant of Bold formatting."
       And a variant covering several platforms is named after the first of them in almanac.yaml order
       And `--mode replace` marks its text as replacing the behaviour's on those platforms, instead of adding to it (`append`, the default)
-    source: [packages/core/src/mutations.ts#addVariant, packages/cli/src/commands/write.ts#registerWriteCommands]
+      But a platform or group almanac.yaml doesn't define stops it with an error such as `error: Unknown platform or group "windows"; known: ios, android` and exit code 2, and an empty `--platforms` with "error: A variant needs at least one platform"
+    source: [packages/core/src/mutations.ts#addVariant, packages/core/src/mutations.ts#known, packages/cli/src/commands/write.ts#registerWriteCommands]
 
   - id: "3.1.8"
     name: Variant mode must be append or replace
@@ -152,6 +153,10 @@ behaviours:
     source: [packages/cli/src/commands/write.ts#commit, packages/core/src/transaction.ts#commitChanges, packages/schema/src/files.ts#behaviourSchema]
 
 changelog:
+  - date: "2026-10-22"
+    summary: Fixes from writing Feature Almanac's own almanac.
+    changes:
+      - modified: "3.1.7"
   - date: "2026-10-22"
     summary: Verified against code.
     changes:

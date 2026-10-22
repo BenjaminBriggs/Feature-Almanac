@@ -7,7 +7,7 @@ Every behaviour carries its review state as a tag beside its name: **Approved**,
 ## How a review works
 
 1. **Review.** **Review** in the search bar shows one behaviour at a time: its category and feature for context, the summary, the steps, the platforms and the variants. **Approve** if that's how the product should behave. **Reject** if it isn't, and say what it should do instead (a reason is required). **Skip** and **Back** move without deciding. By default it shows only what needs a decision: behaviours nobody has reviewed, ones that changed after their review, and ones already decided in this browser. Choose a category to work through one area at a time, or start from a feature's **Review these**.
-2. **Download.** Decisions are kept in the reviewer's browser. To hand them over, they enter their name and press **Download decisions**, which saves a file such as `review-ex-sam-price-2026-10-20.json` for whoever looks after the almanac. The decisions stay in the browser until the reviewer presses **Clear**.
+2. **Download.** Decisions are kept in the reviewer's browser. To hand them over, they enter their name and press **Download decisions**, which saves a file such as `review-ex-sam-price-2026-10-20.json` for whoever looks after the almanac. The decisions stay in the browser until the reviewer presses **Clear**, or until the almanac records them under the same name and the site is rebuilt. A decision on a behaviour that has changed since, or is no longer on the site, is dropped when the page next opens, and review mode says how many.
 3. **Record.** The file is an ordinary patch of `review` ops, so recording it is one command, followed by a commit:
 
    ```bash
