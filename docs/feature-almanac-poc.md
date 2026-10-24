@@ -312,7 +312,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: BenjaminBriggs/Feature-Almanac@main
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -334,11 +334,11 @@ jobs:
 **Fallback: build the tool from source.** If the action can't be used, for example because our copy of the tool's repository is private and its Actions access setting doesn't reach the app repository, replace the action step with these four steps. For a private repository, give the second checkout a read token.
 
 ```yaml
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           repository: BenjaminBriggs/Feature-Almanac
           path: .feature-almanac
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
       - run: npm ci && npm run build

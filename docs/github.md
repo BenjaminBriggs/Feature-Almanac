@@ -42,7 +42,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: BenjaminBriggs/Feature-Almanac@main
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -64,11 +64,11 @@ The almanac lists unreleased behaviour, so make the Pages site private to your o
 If you can't use the action (say your copy of this repository is private and its Actions access setting doesn't reach the app repository), build the tool from source instead. Replace the action step with:
 
 ```yaml
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           repository: BenjaminBriggs/Feature-Almanac   # add token: for a private copy
           path: .feature-almanac
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
       - run: npm ci && npm run build
