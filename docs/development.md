@@ -41,5 +41,5 @@ The [release workflow](../.github/workflows/release.yml) checks that the tag mat
 
 ### Setting up, once
 
-- **Homebrew tap.** Create the public repository `BenjaminBriggs/homebrew-tap`. Add a fine-grained personal access token with Contents read and write on that repository to this repository's Actions secrets as `HOMEBREW_TAP_TOKEN`.
+- **Homebrew tap.** Create the public repository `BenjaminBriggs/homebrew-tap`. The workflow pushes to it with a deploy key: add the public key to the tap with write access (`gh repo deploy-key add <key>.pub -R BenjaminBriggs/homebrew-tap --allow-write`), and put the private key in this repository's Actions secrets as `HOMEBREW_TAP_DEPLOY_KEY` (`gh secret set HOMEBREW_TAP_DEPLOY_KEY < <key>`).
 - **npm.** Trusted publishing can only be set up for a package that already exists, so publish the first version by hand: `npm login`, then `npm publish -w packages/cli` from the repository root. Then, on npmjs.com, open the package's Settings → Trusted publishing and add GitHub Actions with the repository `BenjaminBriggs/Feature-Almanac` and the workflow `release.yml`. Then push the tag. The workflow sees that the version is on npm already and does the rest.
