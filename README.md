@@ -35,14 +35,10 @@ Feature Almanac describes itself: [`almanac/`](almanac/) is this tool's own alma
 
 ## Get started
 
-Install the `almanac` CLI with Homebrew, or with npm if you have Node 20 or later:
+Feature Almanac is at 0.x, so expect changes between versions. Install the `almanac` CLI with Homebrew:
 
 ```bash
 brew install benjaminbriggs/tap/almanac
-```
-
-```bash
-npm install -g feature-almanac
 ```
 
 To run it from a clone of this repository instead, see [Development](docs/development.md).

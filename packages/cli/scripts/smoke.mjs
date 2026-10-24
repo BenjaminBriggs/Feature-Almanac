@@ -1,9 +1,10 @@
-// Packs this package, installs the tarball the way `npm install -g` and the Homebrew formula do,
-// and runs the installed `almanac` through the commands that read files shipped beside the bundle.
+// Packs this package, or takes a tarball already packed (`smoke.mjs <tarball>`), installs it the way
+// `npm install -g` and the Homebrew formula do, and runs the installed `almanac` through the commands
+// that read files shipped beside the bundle.
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const cli = fileURLToPath(new URL('..', import.meta.url))
@@ -17,9 +18,12 @@ const sh = (cmd, args, cwd) => execFileSync(cmd, args, { cwd, encoding: 'utf8', 
 const almanac = (args, cwd = app) => sh(join(prefix, 'bin', 'almanac'), args, cwd)
 const step = (text) => console.log(`smoke: ${text}`)
 
-step(`packing feature-almanac ${version}`)
-sh('npm', ['pack', '--pack-destination', work], cli)
-const tarball = join(work, readdirSync(work).find((file) => file.endsWith('.tgz')))
+let tarball = process.argv[2] === undefined ? undefined : resolve(process.argv[2])
+if (tarball === undefined) {
+  step(`packing feature-almanac ${version}`)
+  sh('npm', ['pack', '--pack-destination', work], cli)
+  tarball = join(work, readdirSync(work).find((file) => file.endsWith('.tgz')))
+}
 
 step(`installing ${tarball}`)
 sh('npm', ['install', '--global', '--prefix', prefix, '--no-audit', '--no-fund', tarball], work)

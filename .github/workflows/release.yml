@@ -1,7 +1,8 @@
 name: Release
 
-# Push a tag like v0.2.0 to publish feature-almanac to npm, create the GitHub release and update the
-# Homebrew formula in BenjaminBriggs/homebrew-tap. See docs/development.md#releasing.
+# Push a tag like v0.2.0 to create the GitHub release with the packed feature-almanac tarball and point
+# the Homebrew formula in BenjaminBriggs/homebrew-tap at it. With the repository variable NPM_PUBLISH
+# set to "true", it also publishes to npm. See docs/development.md#releasing.
 on:
   push:
     tags: ["v*"]
@@ -21,9 +22,6 @@ jobs:
           node-version: "24"
           registry-url: https://registry.npmjs.org
 
-      # Trusted publishing needs npm 11.5.1 or later.
-      - run: npm install --global npm@^11.5.1
-
       - run: npm ci
 
       - name: Check the tag matches packages/cli
@@ -34,35 +32,38 @@ jobs:
             exit 1
           fi
           echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "TARBALL=$RUNNER_TEMP/feature-almanac-$version.tgz" >> "$GITHUB_ENV"
 
       - run: npm run check
 
-      - run: npm run smoke
-
-      # Skipped when the version is already on npm, as when the first release was published by hand
-      # or this run is a retry.
-      - name: Publish to npm
+      - name: Pack and smoke test the tarball
         run: |
-          if curl -fsS -o /dev/null "https://registry.npmjs.org/feature-almanac/$VERSION"; then
-            echo "feature-almanac@$VERSION is already on npm"
-          else
-            npm publish -w packages/cli
-          fi
+          npm pack -w packages/cli --pack-destination "$RUNNER_TEMP"
+          node packages/cli/scripts/smoke.mjs "$TARBALL"
 
+      # 0.x versions are marked as pre-releases. A retry leaves an existing release and its tarball alone,
+      # so the formula's checksum keeps matching.
       - name: Create the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "$GITHUB_REF_NAME is already released"
+            exit 0
+          fi
+          flags=(--verify-tag --generate-notes)
+          if [ "${VERSION%%.*}" = 0 ]; then flags+=(--prerelease); fi
+          gh release create "$GITHUB_REF_NAME" "$TARBALL" "${flags[@]}"
 
       - name: Update the Homebrew formula
         env:
           DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          tarball="$RUNNER_TEMP/feature-almanac.tgz"
-          curl -fsSL --retry 10 --retry-delay 10 --retry-all-errors -o "$tarball" \
-            "https://registry.npmjs.org/feature-almanac/-/feature-almanac-$VERSION.tgz"
-          sha256=$(sha256sum "$tarball" | cut -d' ' -f1)
+          released="$RUNNER_TEMP/released.tgz"
+          curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors -o "$released" \
+            "https://github.com/BenjaminBriggs/Feature-Almanac/releases/download/$GITHUB_REF_NAME/feature-almanac-$VERSION.tgz"
+          sha256=$(sha256sum "$released" | cut -d' ' -f1)
 
           # A deploy key that can write to the tap and nothing else.
           key="$RUNNER_TEMP/homebrew-tap-key"
@@ -86,3 +87,19 @@ jobs:
           git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
             commit -m "almanac $VERSION"
           git push
+
+      # Trusted publishing needs npm 11.5.1 or later.
+      - name: Update npm
+        if: vars.NPM_PUBLISH == 'true'
+        run: npm install --global npm@^11.5.1
+
+      # Skipped when the version is already on npm, as when the first release was published by hand
+      # or this run is a retry.
+      - name: Publish to npm
+        if: vars.NPM_PUBLISH == 'true'
+        run: |
+          if curl -fsS -o /dev/null "https://registry.npmjs.org/feature-almanac/$VERSION"; then
+            echo "feature-almanac@$VERSION is already on npm"
+          else
+            npm publish -w packages/cli
+          fi

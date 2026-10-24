@@ -1,5 +1,5 @@
-// Prints the Homebrew formula for a published version:
-//   node scripts/homebrew-formula.mjs <version> <sha256 of the npm tarball>
+// Prints the Homebrew formula for a released version:
+//   node scripts/homebrew-formula.mjs <version> <sha256 of the tarball attached to the GitHub release>
 // The release workflow writes it to Formula/almanac.rb in BenjaminBriggs/homebrew-tap.
 const [version, sha256] = process.argv.slice(2)
 if (/^\d+\.\d+\.\d+$/.test(version ?? '') === false || /^[0-9a-f]{64}$/.test(sha256 ?? '') === false) {
@@ -10,7 +10,7 @@ if (/^\d+\.\d+\.\d+$/.test(version ?? '') === false || /^[0-9a-f]{64}$/.test(sha
 process.stdout.write(`class Almanac < Formula
   desc "Git-stored spec of everything an app does, kept next to the code"
   homepage "https://github.com/BenjaminBriggs/Feature-Almanac"
-  url "https://registry.npmjs.org/feature-almanac/-/feature-almanac-${version}.tgz"
+  url "https://github.com/BenjaminBriggs/Feature-Almanac/releases/download/v${version}/feature-almanac-${version}.tgz"
   sha256 "${sha256}"
   license "MIT"
 
