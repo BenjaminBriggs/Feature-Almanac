@@ -1,8 +1,19 @@
 {
   "name": "feature-almanac",
   "version": "0.1.0",
-  "private": true,
   "description": "Feature Almanac: a git-stored spec of everything an app does, and the almanac CLI",
+  "keywords": [
+    "specification",
+    "documentation",
+    "behaviour",
+    "gherkin",
+    "ai-agents",
+    "cli"
+  ],
+  "homepage": "https://github.com/BenjaminBriggs/Feature-Almanac#readme",
+  "bugs": "https://github.com/BenjaminBriggs/Feature-Almanac/issues",
+  "license": "MIT",
+  "author": "Ben Briggs",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/BenjaminBriggs/Feature-Almanac.git",
@@ -10,24 +21,32 @@
   },
   "type": "module",
   "bin": {
-    "almanac": "./dist/bin.js"
-  },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    }
+    "almanac": "./bundle/bin/almanac.js"
   },
   "files": [
-    "dist",
+    "bundle",
     "assets"
   ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "bundle": "node scripts/bundle.mjs",
+    "prepack": "node scripts/bundle.mjs",
+    "smoke": "node scripts/smoke.mjs"
+  },
   "dependencies": {
+    "@cucumber/gherkin": "^42.0.1",
+    "@cucumber/messages": "^34.2.1",
+    "commander": "^14.0.3",
+    "diff": "^8.0.4",
+    "minisearch": "^7.2.0",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
     "@feature-almanac/core": "0.1.0",
     "@feature-almanac/schema": "0.1.0",
-    "@feature-almanac/site": "0.1.0",
-    "commander": "^14.0.3"
+    "@feature-almanac/site": "0.1.0"
   }
 }

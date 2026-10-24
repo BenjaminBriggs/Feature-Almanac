@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { join } from 'node:path'
@@ -5,6 +6,8 @@ import { describe, expect, it } from 'vitest'
 import { MemoryFileSystem } from '@feature-almanac/core'
 import { run, type Io } from '../src/index.js'
 
+/** `--version` prints VERSION, which has to match what npm publishes. */
+const PACKAGE_VERSION: string = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version
 const CWD = '/work'
 const ROOT = join(CWD, 'almanac')
 
@@ -122,7 +125,7 @@ platforms:
     expect((await h.almanac('add', 'feature', '--category', '1')).code).toBe(2)
     expect((await h.almanac('init', '--platforms', 'ios')).code).toBe(4)
     expect((await h.almanac('--help')).code).toBe(0)
-    expect(await h.almanac('--version')).toMatchObject({ code: 0, stdout: '0.1.0\n' })
+    expect(await h.almanac('--version')).toMatchObject({ code: 0, stdout: `${PACKAGE_VERSION}\n` })
     expect((await harness().almanac('lint')).code).toBe(2)
   })
 

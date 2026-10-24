@@ -35,14 +35,17 @@ Feature Almanac describes itself: [`almanac/`](almanac/) is this tool's own alma
 
 ## Get started
 
-You need Node 20 or later. Feature Almanac isn't on npm yet, so install it from source:
+Install the `almanac` CLI with Homebrew, or with npm if you have Node 20 or later:
 
 ```bash
-git clone git@github.com:BenjaminBriggs/Feature-Almanac.git
-cd Feature-Almanac
-npm install && npm run build
-cd packages/cli && npm link          # puts `almanac` on your PATH
+brew install benjaminbriggs/tap/almanac
 ```
+
+```bash
+npm install -g feature-almanac
+```
+
+To run it from a clone of this repository instead, see [Development](docs/development.md).
 
 In your app's repository, install the skill and workflows for your agent, then ask it to write the first almanac:
 

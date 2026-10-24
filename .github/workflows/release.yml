@@ -1,0 +1,79 @@
+name: Release
+
+# Push a tag like v0.2.0 to publish feature-almanac to npm, create the GitHub release and update the
+# Homebrew formula in BenjaminBriggs/homebrew-tap. See docs/development.md#releasing.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # the GitHub release
+  id-token: write # npm trusted publishing and provenance
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+
+      # Trusted publishing needs npm 11.5.1 or later.
+      - run: npm install --global npm@^11.5.1
+
+      - run: npm ci
+
+      - name: Check the tag matches packages/cli
+        run: |
+          version=$(node -p "require('./packages/cli/package.json').version")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::$GITHUB_REF_NAME doesn't match feature-almanac $version in packages/cli/package.json"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - run: npm run check
+
+      - run: npm run smoke
+
+      # Skipped when the version is already on npm, as when the first release was published by hand
+      # or this run is a retry.
+      - name: Publish to npm
+        run: |
+          if curl -fsS -o /dev/null "https://registry.npmjs.org/feature-almanac/$VERSION"; then
+            echo "feature-almanac@$VERSION is already on npm"
+          else
+            npm publish -w packages/cli
+          fi
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes
+
+      - name: Update the Homebrew formula
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          tarball="$RUNNER_TEMP/feature-almanac.tgz"
+          curl -fsSL --retry 10 --retry-delay 10 --retry-all-errors -o "$tarball" \
+            "https://registry.npmjs.org/feature-almanac/-/feature-almanac-$VERSION.tgz"
+          sha256=$(sha256sum "$tarball" | cut -d' ' -f1)
+
+          tap="$RUNNER_TEMP/homebrew-tap"
+          git clone "https://x-access-token:$GH_TOKEN@github.com/BenjaminBriggs/homebrew-tap.git" "$tap"
+          mkdir -p "$tap/Formula"
+          node packages/cli/scripts/homebrew-formula.mjs "$VERSION" "$sha256" > "$tap/Formula/almanac.rb"
+
+          cd "$tap"
+          git add Formula/almanac.rb
+          if git diff --cached --quiet; then
+            echo "Formula/almanac.rb is already at $VERSION"
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "almanac $VERSION"
+          git push
